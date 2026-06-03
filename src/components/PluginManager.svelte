@@ -87,8 +87,11 @@
 			return;
 		}
 
+		let release = res[0];
+		if (release.prerelease && res.find((r: any) => !r.prerelease)) release = res.find((r: any) => !r.prerelease);
+
 		let assets = [];
-		for (const asset of res[0].assets) {
+		for (const asset of release.assets) {
 			if (asset.name.toLowerCase().endsWith(".streamdeckplugin") || asset.name.toLowerCase().endsWith(".zip")) {
 				assets.push(asset);
 			}
