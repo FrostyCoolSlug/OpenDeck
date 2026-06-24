@@ -64,6 +64,18 @@ impl ProfileStores {
 					}
 				}
 			}
+
+			// We need to populate instances from a profile without encoders with them
+			for slot in store.value.sliders.iter_mut() {
+				if let Some(instance) = slot
+					&& instance.action.encoder.is_none()
+					&& let Some(action) = actions.iter().find(|a| a.uuid == *instance.action.uuid)
+					&& action.encoder.is_some()
+				{
+					instance.action.encoder = action.encoder.clone();
+				}
+			}
+
 			store.save()?;
 
 			self.stores.insert(canonical_id.clone(), store);
