@@ -111,7 +111,7 @@
 
 <div class="px-6 pt-6 pb-4 text-neutral-300">
 	<button class="float-right text-xl" on:click={() => ($inspectedParentAction = null)} aria-label={$t("settings.close")}>✕</button>
-	<h1 class="font-semibold text-2xl">{parentUuid == "opendeck.toggleaction" ? $t("parent_action.toggle") : $t("parent_action.multi")}</h1>
+	<h1 class="font-semibold text-2xl">{parentUuid == "opendeck.toggleaction" ? $t("parent_action_view.toggle") : $t("parent_action_view.multi")}</h1>
 </div>
 
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -120,7 +120,7 @@
 	class="flex flex-col h-128 overflow-auto"
 	on:click={() => ($inspectedInstance = null)}
 	role="list"
-	aria-label="{parentUuid == 'opendeck.toggleaction' ? $t('parent_action.toggle') : $t('parent_action.multi')} {$t('parent_action.children')}"
+	aria-label="{parentUuid == 'opendeck.toggleaction' ? $t('parent_action_view.toggle') : $t('parent_action_view.multi')} {$t('parent_action_view.children')}"
 	on:keydown={handleListKeydown}
 >
 	{#each children as instance, index}
@@ -142,14 +142,18 @@
 				scale={3 / 4}
 				role="presentation"
 				tabindex={-1}
-				label={(parentUuid == "opendeck.toggleaction" ? "Toggle Action" : "Multi Action") + " action " + (index + 1)}
+				label={(parentUuid == "opendeck.toggleaction" ? $t("parent_action_view.toggle") : $t("parent_action_view.multi")) +
+					" " +
+					$t("parent_action_view.child") +
+					" " +
+					(index + 1)}
 			/>
 			<p class="ml-4 text-xl text-neutral-300">{instance.action.name}</p>
 			<button
 				class="ml-auto mr-10"
 				on:click|stopPropagation={() => removeInstance(index)}
 				tabindex={-1}
-				aria-label={$t("parent_action.remove", { name: instance.action.name })}
+				aria-label={$t("parent_action_view.remove", { name: instance.action.name })}
 			>
 				<Trash size="32" class="text-neutral-400" />
 			</button>
@@ -167,9 +171,9 @@
 		}}
 		role="listitem"
 		tabindex={children.length == 0 ? 0 : -1}
-		aria-label={$t("action_view.dragcopy")}
+		aria-label={$t("parent_action_view.drag_copy")}
 	>
 		<img src="/cube.png" class="m-2 w-24 rounded-xl" alt="" />
-		<p class="ml-4 text-xl text-neutral-400">{$t("action_view.dragpaste")}</p>
+		<p class="ml-4 text-xl text-neutral-400">{$t("parent_action_view.drag_paste")}</p>
 	</div>
 </div>
