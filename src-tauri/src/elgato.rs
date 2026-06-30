@@ -13,6 +13,7 @@ use elgato_streamdeck::{
 	info::Kind,
 };
 use image::{DynamicImage, GenericImageView as _};
+use log::warn;
 use serde_json::Value;
 use tokio::sync::RwLock;
 
@@ -38,6 +39,7 @@ fn get_encoder_image(encoder: &Encoder, instance: &ActionInstance) -> Result<Dyn
 	}
 
 	let path = config_dir().join("plugins").join(&instance.action.plugin);
+	let path_canonical = path.canonicalize()?;
 
 	// We need to validate whether title text and icon images are defined; if not, pull them from the state/action
 	if let Some(items_array) = layout.get_mut("items").and_then(Value::as_array_mut) {
@@ -55,6 +57,32 @@ fn get_encoder_image(encoder: &Encoder, instance: &ActionInstance) -> Result<Dyn
 				// If the state title is empty, fall back to the action name
 				let title = state_text.unwrap_or(instance.action.name.as_str());
 				title_item["value"] = Value::String(title.to_string());
+			}
+		}
+
+		// Expand all image paths in the layout and confirm they're in the plugin
+		for item in items_array.iter_mut() {
+			if item["type"] == "pixmap"
+				&& let Some(v) = item["value"].as_str()
+				&& !v.is_empty()
+				&& !v.starts_with("data:")
+				&& {
+					let t = v.trim_start();
+					!(t.starts_with("<svg") || (t.starts_with("<?xml") && t.contains("<svg")))
+				} {
+				let final_path = path.join(v);
+
+				if let Ok(path) = final_path.canonicalize() {
+					if path.starts_with(&path_canonical) {
+						item["value"] = Value::String(path.to_string_lossy().into_owned());
+					} else {
+						warn!("Attempted to load image outside of base path: {:?}", path);
+						item["value"] = Value::String(String::new());
+					}
+				} else {
+					warn!("Unable to canonicalize path: {:?}", final_path);
+					item["value"] = Value::String(String::new());
+				}
 			}
 		}
 
@@ -76,7 +104,7 @@ fn get_encoder_image(encoder: &Encoder, instance: &ActionInstance) -> Result<Dyn
 		}
 	}
 
-	streamdeck_strip_render::render_to_image(layout, &path, None)
+	streamdeck_strip_render::render_to_image(layout, None)
 }
 
 pub async fn update_image(context: &crate::shared::Context, image: Option<&str>) -> Result<(), anyhow::Error> {
