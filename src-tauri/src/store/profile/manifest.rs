@@ -37,7 +37,7 @@ impl ProfileManifest {
 	}
 
 	pub(crate) fn try_from_id(device: &str, id: Uuid) -> anyhow::Result<Self> {
-		let profile_device_path = profile_base_path().join(device.clone()).join(id.to_string());
+		let profile_device_path = profile_base_path().join(device).join(id.to_string());
 		if !profile_device_path.exists() {
 			info!("Profile device path does not exist, creating it");
 			fs::create_dir_all(&profile_device_path)?;

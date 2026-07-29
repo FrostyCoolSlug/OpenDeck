@@ -26,7 +26,7 @@ image = { version = "0.25", default-features = false, features = ["bmp", "jpeg"]
 streamdeck-strip-render = { git = "https://github.com/FrostyCoolSlug/streamdeck-strip-render", rev = "23fa1399" }
 
 ## NEW STUFF
-uuid = { version = "1.24.0", features = ["v4"] }
+uuid = { version = "1.24.0", features = ["v4", "v5"] }
 
 # Smaller utility libraries
 dashmap = { version = "6.1", features = ["serde"] }

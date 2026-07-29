@@ -1,3 +1,5 @@
+mod active_profile;
+pub mod migration;
 pub mod profile;
 pub mod profiles;
 mod simplified_profile;

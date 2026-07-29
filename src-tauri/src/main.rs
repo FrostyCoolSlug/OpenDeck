@@ -28,6 +28,7 @@ use tauri::{
 	tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 use tauri_plugin_log::{Target, TargetKind};
+use crate::store::migration::migrate_legacy_profiles;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 const SAVE_PROBE: Duration = Duration::from_secs(30);
@@ -60,6 +61,9 @@ fn hide_window(app: &AppHandle) -> Result<(), tauri::Error> {
 async fn main() {
 	log_panics::init();
 	let _ = fix_path_env::fix();
+
+	// Before we do anything, we should migrate profiles to the new format.
+	//let _ = migrate_legacy_profiles();
 
 	#[cfg(target_os = "linux")]
 	// SAFETY: std::env::set_var can cause race conditions in multithreaded contexts. We have not spawned any other threads at this point.
