@@ -1,3 +1,4 @@
+pub mod profile;
 pub mod profiles;
 mod simplified_profile;
 

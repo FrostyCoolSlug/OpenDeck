@@ -11,6 +11,9 @@ use dashmap::DashMap;
 use streamdeck_strip_render::{get_incremental_renderer, strip_renderer::StripRenderer};
 use tauri::Manager;
 use tokio::sync::RwLock;
+use uuid::Uuid;
+use crate::store::profile::page::Page;
+use crate::store::profile::profile::PaginatedProfile;
 
 pub const PRODUCT_NAME: &str = include_str!("../../product_name.txt").trim_ascii();
 
@@ -442,6 +445,50 @@ pub struct Profile {
 
 	#[serde(skip)]
 	pub stale: bool,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ProfileView {
+	pub device: String,
+	pub id: Uuid,
+	pub name: String,
+
+	pub page_count: usize,
+	pub current_page_number: usize,
+
+	pub pinned: PageView,
+	pub current_page: PageView,
+}
+
+impl From<&PaginatedProfile> for ProfileView {
+	fn from(profile: &PaginatedProfile) -> Self {
+		Self {
+			device: profile.device.clone(),
+			id: profile.id,
+			name: profile.name.clone(),
+			page_count: profile.pages.len(),
+			current_page_number: profile.current,
+			pinned: PageView::from(&profile.pinned),
+			current_page: PageView::from(&profile.pages[profile.current]),
+		}
+	}
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PageView {
+	pub keys: Vec<Option<ActionInstance>>,
+	pub encoders: Vec<Option<ActionInstance>>,
+	pub infobars: Vec<Option<ActionInstance>>,
+}
+
+impl From<&Page> for PageView {
+	fn from(page: &Page) -> Self {
+		Self {
+			keys: page.keys.clone(),
+			encoders: page.encoders.clone(),
+			infobars: page.infobars.clone(),
+		}
+	}
 }
 
 /// A map of category names to a list of actions in that category.
