@@ -43,6 +43,11 @@ impl ActiveProfiles {
 
 		Ok(())
 	}
+
+	pub fn unload_profile(&mut self, device: &DeviceInfo, id: Uuid) {
+		let identifier = Self::identifier(&device.id, id);
+		self.profiles.remove(&identifier);
+	}
 }
 
 pub struct DeviceConfigs {
