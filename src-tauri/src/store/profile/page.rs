@@ -1,11 +1,12 @@
 use crate::shared::ActionInstance;
+use crate::store::profile::profile_base_path;
+use anyhow::Result;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
-use crate::store::profile::profile_base_path;
 
 // So this is theoretically identical to the extisting profile struct
 #[derive(Clone, Serialize, Deserialize)]
@@ -15,6 +16,18 @@ pub struct Page {
 	pub encoders: Vec<Option<ActionInstance>>,
 	pub infobars: Vec<Option<ActionInstance>>,
 
+	// Profile ID is transient and is used when loading and saving the page to
+	// make sure it can go in the correct place without awkward function calls
+	#[serde(skip)]
+	pub profile_id: Uuid,
+
+	// As above, the device this page is associated with, again for use when
+	// saving.
+	#[serde(skip)]
+	pub profile_device: String,
+
+	// Is Stale defines whether something has been changed in this page and
+	// needs to be saved.
 	#[serde(skip)]
 	pub stale: bool,
 }
@@ -26,22 +39,23 @@ impl Debug for Page {
 	}
 }
 
-impl Default for Page {
-	fn default() -> Self {
-		Self {
+impl Page {
+	pub(crate) fn default_with(profile_device: &str, profile_id: Uuid) -> Self {
+		Page {
 			id: Uuid::new_v4(),
 			keys: vec![],
 			encoders: vec![],
 			infobars: vec![],
+
+			profile_id,
+			profile_device: profile_device.to_string(),
 			stale: false,
 		}
 	}
-}
 
-impl TryFrom<PathBuf> for Page {
-	type Error = anyhow::Error;
+	pub(crate) fn load_from(device: &str, profile_id: Uuid, page_id: Uuid) -> Result<Self> {
+		let path = Self::build_page_path(device, profile_id, page_id);
 
-	fn try_from(path: PathBuf) -> anyhow::Result<Self, Self::Error> {
 		if !path.exists() {
 			fs::create_dir_all(&path)?;
 		}
@@ -55,17 +69,15 @@ impl TryFrom<PathBuf> for Page {
 		}
 
 		warn!("Page Path does not exist, creating blank page");
-		let default = Page::default();
+		let default = Page::default_with(device, profile_id);
+
 		fs::write(manifest_path, &serde_json::to_string_pretty(&default)?)?;
-
-		Ok(Page::default())
+		Ok(default)
 	}
-}
 
-impl Page {
-	pub fn save(&self, device: &str, manifest_id: &str) -> anyhow::Result<()> {
-		let profile_path = profile_base_path().join(device).join(manifest_id);
-		let page_path = profile_path.join("pages").join(self.id.to_string());
+	pub(crate) fn save(&self) -> Result<()> {
+		let page_path = self.get_page_path();
+
 		if !page_path.exists() {
 			fs::create_dir_all(&page_path)?;
 		}
@@ -73,5 +85,21 @@ impl Page {
 		fs::write(page_manifest_path, &serde_json::to_string_pretty(&self)?)?;
 
 		Ok(())
+	}
+
+	pub fn actions(&self) -> impl Iterator<Item = &ActionInstance> {
+		self.keys.iter().chain(&self.encoders).chain(&self.infobars).flatten()
+	}
+
+	fn get_page_path(&self) -> PathBuf {
+		profile_base_path()
+			.join(self.profile_device.clone())
+			.join(self.profile_id.to_string())
+			.join("pages")
+			.join(self.id.to_string())
+	}
+
+	fn build_page_path(device: &str, profile_id: Uuid, page_id: Uuid) -> PathBuf {
+		profile_base_path().join(device.to_string()).join(profile_id.to_string()).join("pages").join(page_id.to_string())
 	}
 }

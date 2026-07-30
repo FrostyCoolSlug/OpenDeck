@@ -4,6 +4,7 @@ use crate::store::profile::{DeviceConfig, get_profile_entries, profile};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use uuid::Uuid;
+use crate::store::profile::manifest::ProfileManifest;
 
 pub struct ActiveProfiles {
 	pub(crate) profiles: HashMap<String, PaginatedProfile>,
@@ -15,7 +16,29 @@ impl ActiveProfiles {
 	}
 
 	pub fn get_active_profile(&self, device: &DeviceInfo, id: Uuid) -> Result<&PaginatedProfile> {
-		self.profiles.get(&Self::identifier(&device.id, id)).ok_or_else(|| anyhow!("profile not found"))
+		let identifier = Self::identifier(&device.id, id);
+		self.profiles.get(&identifier).ok_or_else(|| anyhow!("Profile not Found"))
+	}
+	pub fn get_active_profile_mut(&mut self, device: &DeviceInfo, id: Uuid) -> Result<&mut PaginatedProfile> {
+		let identifier = Self::identifier(&device.id, id);
+		self.profiles.get_mut(&identifier).ok_or_else(|| anyhow!("Profile not Found"))
+	}
+
+	pub fn load_profile(&mut self, device: &DeviceInfo, id: Uuid) -> Result<&PaginatedProfile> {
+		// Firstly, do we already have this profile?
+		if self.get_active_profile(device, id).is_ok() {
+			return self.get_active_profile(device, id);
+		}
+
+		// We don't, so load it. Note that this will create a new profile if it doesn't exist.
+		let manifest = ProfileManifest::try_from_id(&device.id, id)?;
+		let profile = PaginatedProfile::try_from_manifest(manifest)?;
+
+		// Store it
+		self.profiles.insert(Self::identifier(&device.id, id), profile);
+
+		// Sent it back
+		Ok(self.get_active_profile(device, id)?)
 	}
 }
 

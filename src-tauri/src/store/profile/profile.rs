@@ -32,13 +32,15 @@ pub struct PaginatedProfile {
 impl PaginatedProfile {
 	/// Creates a new profile with a single page attached
 	pub(crate) fn new(device: &str, name: &str) -> Self {
+		let profile_id = Uuid::new_v4();
+		
 		Self {
 			device: device.to_string(),
-			id: Uuid::new_v4(),
+			id: profile_id,
 			name: name.to_string(),
-			pinned: Page::default(),
+			pinned: Page::default_with(device, profile_id),
 			current: 0,
-			pages: vec![Page::default()],
+			pages: vec![Page::default_with(device, profile_id)],
 		}
 	}
 
@@ -48,7 +50,7 @@ impl PaginatedProfile {
 
 		info!("Loading Profile from disk..");
 		let device = manifest.device.clone();
-		let profile_path = profile_base_path().join(device).join(manifest.id.to_string());
+		let profile_path = profile_base_path().join(&device).join(manifest.id.to_string());
 
 		// Ok, let's create a profile object, and start assembling it from the parts.
 		let mut profile = PaginatedProfile {
@@ -56,9 +58,9 @@ impl PaginatedProfile {
 			id: manifest.id,
 			name: manifest.name.clone(),
 
-			pinned: Page::default(),
+			pinned: Page::default_with(&device, manifest.id),
 			current: 0,
-			pages: vec![Page::default()],
+			pages: vec![Page::default_with(&device, manifest.id)],
 		};
 
 		let path = profile_path.join("pages");
@@ -69,14 +71,12 @@ impl PaginatedProfile {
 
 		// First, load out the pinned page
 		let pinned = path.join(manifest.pinned.to_string());
-		profile.pinned = Page::try_from(pinned)?;
+		profile.pinned = Page::load_from(&device, manifest.id, manifest.pinned)?;
 
 		// Now we need to fill the pages
 		for (index, page_id) in manifest.pages.into_iter().enumerate() {
-			let page_path = path.join(page_id.to_string());
-
 			// Once the page has loaded, force push the internal ID in case of desync / default
-			let mut page = Page::try_from(page_path.clone())?;
+			let mut page = Page::load_from(&device, manifest.id, page_id)?;
 			page.id = page_id;
 
 			// Push into the page Vec
@@ -90,9 +90,11 @@ impl PaginatedProfile {
 	}
 
 	pub fn try_from_legacy(device: &str, value: shared::Profile) -> anyhow::Result<Self> {
+		let profile_id = Uuid::new_v4();
+
 		Ok(Self {
 			device: device.to_string(),
-			id: Uuid::new_v4(),
+			id: profile_id,
 			name: value.id,
 			pinned: Page {
 				id: Uuid::new_v4(),
@@ -100,14 +102,19 @@ impl PaginatedProfile {
 				encoders: vec![],
 				infobars: vec![],
 
+				profile_device: device.to_string(),
+				profile_id,
 				stale: true,
 			},
 			current: 0,
 			pages: vec![Page {
-				id: Uuid::new_v4(),
+				id: profile_id,
 				keys: value.keys,
 				encoders: value.sliders,
 				infobars: value.infobars,
+
+				profile_device: device.to_string(),
+				profile_id,
 				stale: true,
 			}],
 		})
@@ -122,11 +129,11 @@ impl PaginatedProfile {
 		let manifest_id = manifest.id.to_string();
 
 		// Next, we need to save the pinned page
-		self.pinned.save(&manifest_device, &manifest_id)?;
+		self.pinned.save()?;
 
 		// Then, the rest of the pages
 		for page in self.pages.iter() {
-			page.save(&manifest_device, &manifest_id)?;
+			page.save()?;
 		}
 
 		Ok(())
@@ -138,6 +145,9 @@ impl PaginatedProfile {
 			keys: vec![],
 			encoders: vec![],
 			infobars: vec![],
+
+			profile_device: self.device.clone(),
+			profile_id: self.id,
 			stale: false,
 		});
 	}
