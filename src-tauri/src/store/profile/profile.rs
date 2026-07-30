@@ -33,7 +33,7 @@ impl PaginatedProfile {
 	/// Creates a new profile with a single page attached
 	pub(crate) fn new(device: &str, name: &str) -> Self {
 		let profile_id = Uuid::new_v4();
-		
+
 		Self {
 			device: device.to_string(),
 			id: profile_id,
@@ -60,7 +60,7 @@ impl PaginatedProfile {
 
 			pinned: Page::default_with(&device, manifest.id),
 			current: 0,
-			pages: vec![Page::default_with(&device, manifest.id)],
+			pages: vec![],
 		};
 
 		let path = profile_path.join("pages");
@@ -86,6 +86,12 @@ impl PaginatedProfile {
 				profile.current = index;
 			}
 		}
+
+		// If there are no pages loaded, force one into the profile
+		if profile.pages.is_empty() {
+			profile.add_page();
+		}
+
 		Ok(profile)
 	}
 
@@ -125,9 +131,6 @@ impl PaginatedProfile {
 		let manifest = ProfileManifest::try_from_profile(self)?;
 		manifest.save()?;
 
-		let manifest_device = manifest.device;
-		let manifest_id = manifest.id.to_string();
-
 		// Next, we need to save the pinned page
 		self.pinned.save()?;
 
@@ -140,7 +143,7 @@ impl PaginatedProfile {
 	}
 
 	pub fn add_page(&mut self) {
-		self.pages.push(Page {
+		let page = Page {
 			id: Uuid::new_v4(),
 			keys: vec![],
 			encoders: vec![],
@@ -149,7 +152,11 @@ impl PaginatedProfile {
 			profile_device: self.device.clone(),
 			profile_id: self.id,
 			stale: false,
-		});
+		};
+
+		// Save and push
+		let _ = page.save();
+		self.pages.push(page);
 	}
 
 	pub fn remove_page(&mut self) {
