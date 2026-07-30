@@ -90,6 +90,13 @@ impl Page {
 		Ok(())
 	}
 
+	pub(crate) fn delete(&self) -> Result<()> {
+		let page_path = self.get_page_path();
+		fs::remove_dir_all(page_path)?;
+
+		Ok(())
+	}
+
 	pub fn actions(&self) -> impl Iterator<Item = &ActionInstance> {
 		self.keys.iter().chain(&self.encoders).chain(&self.infobars).flatten()
 	}

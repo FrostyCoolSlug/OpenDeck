@@ -1,10 +1,10 @@
-use crate::shared::{DeviceInfo, config_dir};
+use crate::shared::{DeviceInfo, ProfileEntry};
+use crate::store::profile::manifest::ProfileManifest;
 use crate::store::profile::profile::PaginatedProfile;
 use crate::store::profile::{DeviceConfig, get_profile_entries, profile};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::store::profile::manifest::ProfileManifest;
 
 pub struct ActiveProfiles {
 	pub(crate) profiles: HashMap<String, PaginatedProfile>,
@@ -28,7 +28,7 @@ impl ActiveProfiles {
 	pub fn load_profile(&mut self, device: &DeviceInfo, id: Uuid) -> Result<()> {
 		// Firstly, do we already have this profile?
 		if self.get_profile(device, id).is_ok() {
-			return Ok(())
+			return Ok(());
 		}
 
 		// We don't, so load it. Note that this will create a new profile if it doesn't exist.
@@ -47,6 +47,31 @@ impl ActiveProfiles {
 	pub fn unload_profile(&mut self, device: &DeviceInfo, id: Uuid) {
 		let identifier = Self::identifier(&device.id, id);
 		self.profiles.remove(&identifier);
+	}
+
+	pub fn create_profile(&mut self, device: &DeviceInfo, name: String) -> Result<ProfileEntry> {
+		let profile = PaginatedProfile::new(&device.id, &name);
+		profile.save()?;
+
+		let uuid = profile.id;
+		let entry = ProfileEntry { id: uuid, name: profile.name.clone() };
+
+		self.load_profile(device, uuid)?;
+		Ok(entry)
+	}
+
+	pub fn rename_profile(&mut self, device: &DeviceInfo, id: Uuid, name: &str) -> Result<()> {
+		let profile = self.get_profile_mut(device, id)?;
+		profile.name = name.to_string();
+		profile.save()?;
+		Ok(())
+	}
+
+	pub fn delete_profile(&mut self, device: &DeviceInfo, id: Uuid) -> Result<()> {
+		self.get_profile_mut(device, id)?.delete()?;
+		self.unload_profile(device, id);
+
+		Ok(())
 	}
 }
 

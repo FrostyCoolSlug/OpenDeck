@@ -142,6 +142,15 @@ impl PaginatedProfile {
 		Ok(())
 	}
 
+	pub fn delete(&self) -> Result<()> {
+		let path = profile_base_path().join(&self.device).join(self.id.to_string());
+
+		info!("Deleting Profile: {}", path.display());
+		fs::remove_dir_all(path)?;
+
+		Ok(())
+	}
+
 	pub fn add_page(&mut self) {
 		let page = Page {
 			id: Uuid::new_v4(),
