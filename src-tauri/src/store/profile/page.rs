@@ -1,7 +1,7 @@
 use crate::shared::ActionInstance;
 use crate::store::profile::profile_base_path;
 use anyhow::Result;
-use log::warn;
+use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
@@ -63,7 +63,10 @@ impl Page {
 		let manifest_path = path.join("manifest.json");
 		if manifest_path.exists() {
 			let manifest_file = fs::read_to_string(manifest_path)?;
-			let page: Page = serde_json::from_str(&manifest_file)?;
+			let mut page: Page = serde_json::from_str(&manifest_file)?;
+
+			page.profile_device = String::from(device);
+			page.profile_id = profile_id;
 
 			return Ok(page);
 		}
