@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use crate::store::active_profile::ActiveProfiles;
+use crate::store::active_profile::{ActiveProfiles, DeviceConfigs};
 use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -286,11 +286,14 @@ pub fn get_device_profiles(device: &str) -> Result<Vec<String>, anyhow::Error> {
 /// A singleton object to contain all active Store instances that hold a profile.
 pub static PROFILE_STORES: LazyLock<RwLock<ProfileStores>> = LazyLock::new(|| RwLock::new(ProfileStores { stores: HashMap::new() }));
 
+/// A singleton object to manage Store instances for device configurations.
+pub static DEVICE_STORES: LazyLock<RwLock<DeviceStores>> = LazyLock::new(|| RwLock::new(DeviceStores { stores: HashMap::new() }));
+
 /// Currently Active Profiles
 pub static ACTIVE_PROFILES: LazyLock<RwLock<ActiveProfiles>> = LazyLock::new(|| RwLock::new(ActiveProfiles { profiles: HashMap::new() }));
 
-/// A singleton object to manage Store instances for device configurations.
-pub static DEVICE_STORES: LazyLock<RwLock<DeviceStores>> = LazyLock::new(|| RwLock::new(DeviceStores { stores: HashMap::new() }));
+/// Current Device Config
+pub static DEVICE_CONFIG: LazyLock<RwLock<DeviceConfigs>> = LazyLock::new(|| RwLock::new(DeviceConfigs { devices: HashMap::new() }));
 
 pub struct Locks<'a> {
 	#[allow(dead_code)]

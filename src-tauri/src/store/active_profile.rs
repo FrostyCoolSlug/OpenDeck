@@ -1,6 +1,6 @@
 use crate::shared::DeviceInfo;
 use crate::store::Store;
-use crate::store::profile::profile;
+use crate::store::profile::{profile, DeviceConfig};
 use crate::store::profile::profile::PaginatedProfile;
 use anyhow::anyhow;
 use std::collections::HashMap;
@@ -8,6 +8,10 @@ use std::path::PathBuf;
 
 pub struct ActiveProfiles {
 	pub(crate) profiles: HashMap<String, PaginatedProfile>,
+}
+
+pub struct DeviceConfigs {
+	pub(crate) devices: HashMap<String, DeviceConfig>
 }
 
 impl ActiveProfiles {

@@ -18,13 +18,13 @@ pub struct ProfileEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SelectedProfile {
+pub struct DeviceConfig {
 	#[serde(skip)]
 	pub device: String,
 	pub id: Uuid,
 }
 
-impl SelectedProfile {
+impl DeviceConfig {
 	fn path(device: &str) -> PathBuf {
 		profile_base_path().join(format!("{device}.json"))
 	}
@@ -35,7 +35,7 @@ impl SelectedProfile {
 
 	pub fn try_from_device(device: &str) -> Result<Self> {
 		let content = fs::read_to_string(Self::path(device))?;
-		let mut selected: SelectedProfile = serde_json::from_str(&content)?;
+		let mut selected: DeviceConfig = serde_json::from_str(&content)?;
 		selected.device = device.to_owned();
 		Ok(selected)
 	}
@@ -65,7 +65,7 @@ pub fn load_profile(device: &str, id: Uuid) -> Result<PaginatedProfile> {
 }
 
 pub fn get_selected_profile(device: &str) -> Result<Uuid> {
-	if let Ok(selected) = SelectedProfile::try_from_device(device)
+	if let Ok(selected) = DeviceConfig::try_from_device(device)
 		&& ProfileManifest::exists(device, selected.id)
 	{
 		return Ok(selected.id);
@@ -73,7 +73,7 @@ pub fn get_selected_profile(device: &str) -> Result<Uuid> {
 
 	// Nothing valid selected yet - fall back to whatever's first, if anything exists.
 	if let Some(first) = get_profile_manifests(device).into_iter().next() {
-		SelectedProfile {
+		DeviceConfig {
 			device: device.to_owned(),
 			id: first.id,
 		}
@@ -84,7 +84,7 @@ pub fn get_selected_profile(device: &str) -> Result<Uuid> {
 	// Nothing exists at all for this device - create a fresh default and select it.
 	// try_from_id already handles "doesn't exist yet -> write a default manifest".
 	let manifest = ProfileManifest::try_from_id(device, Uuid::new_v4())?;
-	SelectedProfile {
+	DeviceConfig {
 		device: device.to_owned(),
 		id: manifest.id,
 	}

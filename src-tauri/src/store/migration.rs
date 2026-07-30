@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use log::{info, warn};
 use uuid::Uuid;
-use crate::store::profile::SelectedProfile;
+use crate::store::profile::DeviceConfig;
 
 /// Fixed, arbitrary namespace used to deterministically derive a profile's new UUID from its
 /// legacy `device/id` string. This makes the sweep safe to interrupt and re-run: the same legacy
@@ -106,7 +106,7 @@ fn migrate_device_selection(profiles_root: &Path, device: &str) {
 		return;
 	}
 
-	if let Err(e) = (SelectedProfile { device: device.to_owned(), id: uuid }).save() {
+	if let Err(e) = (DeviceConfig { device: device.to_owned(), id: uuid }).save() {
 		warn!("Failed to persist migrated device selection for '{device}': {e}");
 	}
 }
