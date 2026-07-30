@@ -7,6 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
+use crate::store::active_profile::ActiveProfiles;
 use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -285,6 +286,9 @@ pub fn get_device_profiles(device: &str) -> Result<Vec<String>, anyhow::Error> {
 /// A singleton object to contain all active Store instances that hold a profile.
 pub static PROFILE_STORES: LazyLock<RwLock<ProfileStores>> = LazyLock::new(|| RwLock::new(ProfileStores { stores: HashMap::new() }));
 
+/// Currently Active Profiles
+pub static ACTIVE_PROFILES: LazyLock<RwLock<ActiveProfiles>> = LazyLock::new(|| RwLock::new(ActiveProfiles { profiles: HashMap::new() }));
+
 /// A singleton object to manage Store instances for device configurations.
 pub static DEVICE_STORES: LazyLock<RwLock<DeviceStores>> = LazyLock::new(|| RwLock::new(DeviceStores { stores: HashMap::new() }));
 
@@ -292,23 +296,27 @@ pub struct Locks<'a> {
 	#[allow(dead_code)]
 	pub device_stores: RwLockReadGuard<'a, DeviceStores>,
 	pub profile_stores: RwLockReadGuard<'a, ProfileStores>,
+	pub active_profiles: RwLockReadGuard<'a, ActiveProfiles>,
 }
 
 pub async fn acquire_locks() -> Locks<'static> {
 	let device_stores = DEVICE_STORES.read().await;
 	let profile_stores = PROFILE_STORES.read().await;
-	Locks { device_stores, profile_stores }
+	let active_profiles = ACTIVE_PROFILES.read().await;
+	Locks { device_stores, profile_stores, active_profiles }
 }
 
 pub struct LocksMut<'a> {
 	pub device_stores: RwLockWriteGuard<'a, DeviceStores>,
 	pub profile_stores: RwLockWriteGuard<'a, ProfileStores>,
+	pub active_profiles: RwLockWriteGuard<'a, ActiveProfiles>,
 }
 
 pub async fn acquire_locks_mut() -> LocksMut<'static> {
 	let device_stores = DEVICE_STORES.write().await;
 	let profile_stores = PROFILE_STORES.write().await;
-	LocksMut { device_stores, profile_stores }
+	let active_profiles = ACTIVE_PROFILES.write().await;
+	LocksMut { device_stores, profile_stores, active_profiles }
 }
 
 pub async fn get_slot<'a>(context: &crate::shared::Context, locks: &'a Locks<'_>) -> Result<&'a Option<crate::shared::ActionInstance>, anyhow::Error> {
