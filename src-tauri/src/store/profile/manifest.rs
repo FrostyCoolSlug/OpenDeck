@@ -63,7 +63,10 @@ impl ProfileManifest {
 			default
 		} else {
 			let manifest_content = fs::read_to_string(manifest_path)?;
-			serde_json::from_str(&manifest_content)?
+			let mut manifest = serde_json::from_str::<Self>(&manifest_content)?;
+			manifest.device = String::from(device);
+
+			manifest
 		};
 
 		Ok(manifest)
