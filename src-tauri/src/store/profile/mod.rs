@@ -101,7 +101,7 @@ pub fn get_selected_profile(device: &str) -> Result<Uuid> {
 	Ok(manifest.id)
 }
 
-pub fn get_profile_names(device: &str) -> Vec<ProfileEntry> {
+pub fn get_profile_entries(device: &str) -> Vec<ProfileEntry> {
 	let mut names = vec![];
 
 	let manifests = get_profile_manifests(device);
@@ -117,6 +117,9 @@ fn get_profile_manifests(device: &str) -> Vec<ProfileManifest> {
 
 	// Get this profiles base path
 	let profile_base_path = profile_base_path().join(device);
+	if !profile_base_path.exists() {
+		return vec![];
+	}
 
 	// Find all directories in this path
 	if let Ok(entries) = fs::read_dir(&profile_base_path) {
