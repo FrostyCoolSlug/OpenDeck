@@ -15,19 +15,20 @@ impl ActiveProfiles {
 		format!("{}-{}", device, id)
 	}
 
-	pub fn get_active_profile(&self, device: &DeviceInfo, id: Uuid) -> Result<&PaginatedProfile> {
+	pub fn get_profile(&self, device: &DeviceInfo, id: Uuid) -> Result<&PaginatedProfile> {
 		let identifier = Self::identifier(&device.id, id);
 		self.profiles.get(&identifier).ok_or_else(|| anyhow!("Profile not Found"))
 	}
-	pub fn get_active_profile_mut(&mut self, device: &DeviceInfo, id: Uuid) -> Result<&mut PaginatedProfile> {
+
+	pub fn get_profile_mut(&mut self, device: &DeviceInfo, id: Uuid) -> Result<&mut PaginatedProfile> {
 		let identifier = Self::identifier(&device.id, id);
 		self.profiles.get_mut(&identifier).ok_or_else(|| anyhow!("Profile not Found"))
 	}
 
-	pub fn load_profile(&mut self, device: &DeviceInfo, id: Uuid) -> Result<&PaginatedProfile> {
+	pub fn load_profile(&mut self, device: &DeviceInfo, id: Uuid) -> Result<()> {
 		// Firstly, do we already have this profile?
-		if self.get_active_profile(device, id).is_ok() {
-			return self.get_active_profile(device, id);
+		if self.get_profile(device, id).is_ok() {
+			return Ok(())
 		}
 
 		// We don't, so load it. Note that this will create a new profile if it doesn't exist.
@@ -37,8 +38,10 @@ impl ActiveProfiles {
 		// Store it
 		self.profiles.insert(Self::identifier(&device.id, id), profile);
 
-		// Sent it back
-		Ok(self.get_active_profile(device, id)?)
+		// TODO: We need to go through ALL the acitons in this profile
+		// We need to remove any actions that are no longer available
+
+		Ok(())
 	}
 }
 
