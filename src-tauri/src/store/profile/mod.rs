@@ -21,7 +21,16 @@ pub struct ProfileEntry {
 pub struct DeviceConfig {
 	#[serde(skip)]
 	pub device: String,
-	pub id: Uuid,
+	pub selected_profile: Uuid,
+}
+
+impl Default for DeviceConfig {
+	fn default() -> Self {
+		Self {
+			device: "".to_owned(),
+			selected_profile: Uuid::new_v4(),
+		}
+	}
 }
 
 impl DeviceConfig {
@@ -66,16 +75,16 @@ pub fn load_profile(device: &str, id: Uuid) -> Result<PaginatedProfile> {
 
 pub fn get_selected_profile(device: &str) -> Result<Uuid> {
 	if let Ok(selected) = DeviceConfig::try_from_device(device)
-		&& ProfileManifest::exists(device, selected.id)
+		&& ProfileManifest::exists(device, selected.selected_profile)
 	{
-		return Ok(selected.id);
+		return Ok(selected.selected_profile);
 	}
 
 	// Nothing valid selected yet - fall back to whatever's first, if anything exists.
 	if let Some(first) = get_profile_manifests(device).into_iter().next() {
 		DeviceConfig {
 			device: device.to_owned(),
-			id: first.id,
+			selected_profile: first.id,
 		}
 		.save()?;
 		return Ok(first.id);
@@ -86,7 +95,7 @@ pub fn get_selected_profile(device: &str) -> Result<Uuid> {
 	let manifest = ProfileManifest::try_from_id(device, Uuid::new_v4())?;
 	DeviceConfig {
 		device: device.to_owned(),
-		id: manifest.id,
+		selected_profile: manifest.id,
 	}
 	.save()?;
 	Ok(manifest.id)

@@ -106,7 +106,7 @@ fn migrate_device_selection(profiles_root: &Path, device: &str) {
 		return;
 	}
 
-	if let Err(e) = (DeviceConfig { device: device.to_owned(), id: uuid }).save() {
+	if let Err(e) = (DeviceConfig { device: device.to_owned(), selected_profile: uuid }).save() {
 		warn!("Failed to persist migrated device selection for '{device}': {e}");
 	}
 }
