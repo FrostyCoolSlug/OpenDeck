@@ -62,9 +62,6 @@ async fn main() {
 	log_panics::init();
 	let _ = fix_path_env::fix();
 
-	// Before we do anything, we should migrate profiles to the new format.
-	//let _ = migrate_legacy_profiles();
-
 	#[cfg(target_os = "linux")]
 	// SAFETY: std::env::set_var can cause race conditions in multithreaded contexts. We have not spawned any other threads at this point.
 	unsafe {
@@ -113,6 +110,9 @@ async fn main() {
 		])
 		.setup(|app| {
 			APP_HANDLE.set(app.handle().clone()).unwrap();
+
+			// Before we do anything, we should migrate profiles to the new format.
+			println!("{:?}", migrate_legacy_profiles());
 
 			#[cfg(windows)]
 			if !std::env::args().any(|v| v == "--hide") {
