@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ActionInstance } from "$lib/ActionInstance";
 	import type { DeviceInfo } from "$lib/DeviceInfo";
-	import type { Profile } from "$lib/Profile";
+	import type { ProfileView } from "$lib/ProfileView";
 
 	import { t } from "$lib/i18n";
 	import { getWebserverUrl, getWebSocketPort } from "$lib/ports";
@@ -16,7 +16,9 @@
 	let iframePopupsOpen: string[] = [];
 
 	export let device: DeviceInfo;
-	export let profile: Profile;
+	export let profile: ProfileView;
+
+	$: page = profile.current_page;
 
 	async function iframeOnLoad(event: Event, instance: ActionInstance) {
 		const iframe = iframes[instance.context] ?? event.target;
@@ -162,11 +164,11 @@
 	});
 
 	const nonNull = <T,>(o: T | null): o is T => o != null;
-	$: instances = profile.keys
+	$: instances = page.keys
 		.filter(nonNull)
 		.reduce((prev, current) => prev.concat(current.children ? [current, ...current.children] : current), [] as ActionInstance[])
-		.concat(profile.sliders.filter(nonNull))
-		.concat(profile.infobars.filter(nonNull));
+		.concat(page.encoders.filter(nonNull))
+		.concat(page.infobars.filter(nonNull));
 
 	listen("plugin_reloaded", ({ payload }: { payload: string }) => {
 		for (const instance of instances) {

@@ -90,6 +90,7 @@ async fn main() {
 			frontend::profiles::get_profiles,
 			frontend::profiles::get_selected_profile,
 			frontend::profiles::set_selected_profile,
+			frontend::profiles::create_profile,
 			frontend::profiles::delete_profile,
 			frontend::profiles::rename_profile,
 			frontend::property_inspector::make_info,
@@ -112,7 +113,7 @@ async fn main() {
 			APP_HANDLE.set(app.handle().clone()).unwrap();
 
 			// Before we do anything, we should migrate profiles to the new format.
-			println!("{:?}", migrate_legacy_profiles());
+			//println!("{:?}", migrate_legacy_profiles());
 
 			#[cfg(windows)]
 			if !std::env::args().any(|v| v == "--hide") {

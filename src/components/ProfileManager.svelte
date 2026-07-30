@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { DeviceInfo } from "$lib/DeviceInfo";
-	import type { Profile } from "$lib/Profile";
+	import type { ProfileView } from "$lib/ProfileView";
+	import type { ProfileEntry } from "$lib/ProfileEntry";
 
 	import Browsers from "phosphor-svelte/lib/Browsers";
 	import Copy from "phosphor-svelte/lib/Copy";
@@ -16,15 +17,15 @@
 	import { listen } from "@tauri-apps/api/event";
 	import { message } from "@tauri-apps/plugin-dialog";
 
-	let folders: { [name: string]: string[] } = {};
+	let folders: { [name: string]: ProfileEntry[] } = {};
 	let value: string;
 	async function getProfiles(device: DeviceInfo) {
-		let profiles: string[] = await invoke("get_profiles", { device: device.id });
+		let profiles: ProfileEntry[] = await invoke("get_profiles", { device: device.id });
 		folders = {};
-		for (const id of profiles) {
-			let folder = id.includes("/") ? id.split("/")[0] : "";
-			if (folders[folder]) folders[folder].push(id);
-			else folders[folder] = [id];
+		for (const entry of profiles) {
+			let folder = entry.name.includes("/") ? entry.name.split("/")[0] : "";
+			if (folders[folder]) folders[folder].push(entry);
+			else folders[folder] = [entry];
 		}
 		profile = await invoke("get_selected_profile", { device: device.id });
 		value = profile.id;
@@ -34,7 +35,7 @@
 	export let device: DeviceInfo;
 	getProfiles(device);
 
-	export let profile: Profile;
+	export let profile: ProfileView;
 	export async function setProfile(id: string) {
 		if (!device || !id) return;
 		if (value != id) {
@@ -43,12 +44,6 @@
 		}
 		await invoke("set_selected_profile", { device: device.id, id });
 		profile = await invoke("get_selected_profile", { device: device.id });
-
-		let folder = id.includes("/") ? id.split("/")[0] : "";
-		if (folders[folder]) {
-			if (!folders[folder].includes(id)) folders[folder].push(id);
-		} else folders[folder] = [id];
-		folders = folders;
 
 		$inspectedInstance = null;
 	}
@@ -67,58 +62,63 @@
 			}
 		}
 		await invoke("delete_profile", { device: device.id, profile: id });
-		let folder = id.includes("/") ? id.split("/")[0] : "";
-		folders[folder].splice(folders[folder].indexOf(id), 1);
+		for (const folder in folders) {
+			const index = folders[folder].findIndex((entry) => entry.id == id);
+			if (index != -1) folders[folder].splice(index, 1);
+		}
 		folders = folders;
 	}
 
 	let renamingProfile: string | null = null;
 	let renameInput: HTMLInputElement;
-	let newId: string = "";
+	let newName: string = "";
 
-	async function saveRenamedProfile(oldId: string) {
-		if (!renameInput.checkValidity() || !newId) return;
-		if (newId == oldId) {
+	async function saveRenamedProfile(id: string) {
+		if (!renameInput.checkValidity() || !newName) return;
+
+		let entry: ProfileEntry | undefined;
+		let oldFolder = "";
+		for (const folder in folders) {
+			const found = folders[folder].find((e) => e.id == id);
+			if (found) {
+				entry = found;
+				oldFolder = folder;
+				break;
+			}
+		}
+		if (!entry) return;
+
+		if (newName == entry.name) {
 			renamingProfile = null;
 			return;
 		}
 
-		// Check if a profile with the new ID already exists
+		// Check if a profile with the new name already exists
 		const allProfiles = Object.values(folders).flat();
-		if (allProfiles.includes(newId)) {
-			message($t("profile_manager.rename.exists", { id: newId }), { title: $t("profile_manager.rename.failed"), buttons: { ok: $t("dialog.ok") } });
+		if (allProfiles.some((e) => e.name == newName)) {
+			message($t("profile_manager.rename.exists", { id: newName }), { title: $t("profile_manager.rename.failed"), buttons: { ok: $t("dialog.ok") } });
 			return;
 		}
 
 		try {
-			await invoke("rename_profile", { device: device.id, oldId, newId, retain: false });
+			await invoke("rename_profile", { device: device.id, id, name: newName });
 		} catch (error: any) {
 			message(error, { title: $t("profile_manager.rename.failed"), buttons: { ok: $t("dialog.ok") } });
 			console.error(error);
 		}
 
-		// Update application profile mappings
-		for (const devices of Object.values(applicationProfiles)) {
-			if (devices[device.id] == oldId) devices[device.id] = newId;
-		}
-		applicationProfiles = applicationProfiles;
-
 		// Update folders structure
-		const oldFolder = oldId.includes("/") ? oldId.split("/")[0] : "";
-		const newFolder = newId.includes("/") ? newId.split("/")[0] : "";
+		const newFolder = newName.includes("/") ? newName.split("/")[0] : "";
 
-		// Remove from old folder
-		if (folders[oldFolder]) {
-			const index = folders[oldFolder].indexOf(oldId);
-			if (index != -1) {
-				folders[oldFolder].splice(index, 1);
-				if (folders[oldFolder].length == 0 && oldFolder != "") delete folders[oldFolder];
-			}
+		const index = folders[oldFolder].indexOf(entry);
+		if (index != -1) {
+			folders[oldFolder].splice(index, 1);
+			if (folders[oldFolder].length == 0 && oldFolder != "") delete folders[oldFolder];
 		}
 
-		// Add to new folder
-		if (folders[newFolder]) folders[newFolder].push(newId);
-		else folders[newFolder] = [newId];
+		entry.name = newName;
+		if (folders[newFolder]) folders[newFolder].push(entry);
+		else folders[newFolder] = [entry];
 
 		folders = folders;
 		renamingProfile = null;
@@ -126,17 +126,24 @@
 	$: if (renameInput) renameInput.focus();
 
 	async function duplicateProfile(id: string) {
-		let newId = id + $t("profile_manager.duplicate.suffix");
+		const entry = Object.values(folders)
+			.flat()
+			.find((e) => e.id == id);
+		if (!entry) return;
 
-		// Check if a profile with the new ID already exists
+		let newName = entry.name + $t("profile_manager.duplicate.suffix");
+
+		// Check if a profile with the new name already exists
 		const allProfiles = Object.values(folders).flat();
 		let counter = 1;
-		while (allProfiles.includes(newId)) {
+		while (allProfiles.some((e) => e.name == newName)) {
 			counter++;
-			newId = `${id}${$t("profile_manager.duplicate.suffix")} ${counter}`;
+			newName = `${entry.name}${$t("profile_manager.duplicate.suffix")} ${counter}`;
 		}
 
-		await invoke("rename_profile", { device: device.id, oldId: id, newId, retain: true });
+		// TODO: confirm this against your actual duplicate_profile signature - `rename_profile`
+		// with `retain: true` no longer makes sense now that id and name are decoupled.
+		await invoke("duplicate_profile", { device: device.id, id, newName });
 		await getProfiles(device);
 	}
 
@@ -153,6 +160,18 @@
 
 	let showPopup: boolean = false;
 	let nameInput: HTMLInputElement;
+
+	async function createProfile() {
+		if (!nameInput.checkValidity() || !nameInput.value) return;
+		const entry: ProfileEntry = await invoke("create_profile", { device: device.id, name: nameInput.value });
+		const folder = entry.name.includes("/") ? entry.name.split("/")[0] : "";
+		if (folders[folder]) folders[folder].push(entry);
+		else folders[folder] = [entry];
+		folders = folders;
+		await setProfile(entry.id);
+		nameInput.value = "";
+		showPopup = false;
+	}
 
 	let showApplicationManager: boolean = false;
 	let applications: string[];
@@ -184,7 +203,11 @@
 	let measure: HTMLSpanElement;
 	let selectWidth = 0;
 	$: if (value && measure) {
-		measure.textContent = value.includes("/") ? value.split("/")[1] : value;
+		const entry = Object.values(folders)
+			.flat()
+			.find((e) => e.id == value);
+		const name = entry?.name ?? "";
+		measure.textContent = name.includes("/") ? name.split("/")[1] : name;
 		selectWidth = measure.offsetWidth + 18;
 	}
 </script>
@@ -195,13 +218,13 @@
 		{#each Object.entries(folders).sort() as [id, profiles]}
 			{#if id && profiles.length}
 				<optgroup label={id}>
-					{#each profiles.sort() as profile}
-						<option value={profile}>{profile.split("/")[1]}</option>
+					{#each profiles.sort((a, b) => a.name.localeCompare(b.name)) as profile}
+						<option value={profile.id}>{profile.name.split("/")[1]}</option>
 					{/each}
 				</optgroup>
 			{:else}
-				{#each profiles.sort() as profile}
-					<option value={profile}>{profile}</option>
+				{#each profiles.sort((a, b) => a.name.localeCompare(b.name)) as profile}
+					<option value={profile.id}>{profile.name}</option>
 				{/each}
 			{/if}
 		{/each}
@@ -233,13 +256,7 @@
 		/>
 
 		<button
-			on:click={async () => {
-				if (!nameInput.checkValidity() || !nameInput.value) return;
-				await setProfile(nameInput.value);
-				value = nameInput.value;
-				nameInput.value = "";
-				showPopup = false;
-			}}
+			on:click={createProfile}
 			class="px-4 text-neutral-300 bg-neutral-900 hover:bg-neutral-800 transition-colors border-r border-y border-neutral-600 rounded-r-lg"
 		>
 			{$t("profile_manager.create")}
@@ -259,41 +276,48 @@
 			{#if id && profiles.length}
 				<h4 class="py-2 font-bold text-lg text-neutral-300">{id}</h4>
 			{/if}
-			{#each profiles.sort() as profile}
+			{#each profiles.sort((a, b) => a.name.localeCompare(b.name)) as profile}
 				<div class="flex flex-row items-center py-2 space-x-2" class:ml-6={id} class:pl-2={id}>
 					<input
 						type="radio"
 						bind:group={value}
-						value={profile}
-						disabled={renamingProfile == profile}
-						id={`profile-${encodeURIComponent(profile)}`}
-						aria-label={id ? profile.split("/")[1] : profile}
+						value={profile.id}
+						disabled={renamingProfile === profile.id}
+						id={`profile-${profile.id}`}
+						aria-label={id ? profile.name.split("/")[1] : profile.name}
 					/>
-					{#if profile == renamingProfile}
+					{#if profile.id === renamingProfile}
 						<!-- prettier-ignore -->
 						<input
 							bind:this={renameInput}
-							bind:value={newId}
+							bind:value={newName}
 							pattern="[a-zA-Z0-9_ ]+(\/[a-zA-Z0-9_ ]+)?"
 							class="grow px-2 py-1 text-neutral-300 invalid:text-red-400 bg-neutral-700 rounded"
 							placeholder='Profile name or "folder/name"'
 							on:keydown={(e) => {
-								if (e.key === "Enter") saveRenamedProfile(profile);
+								if (e.key === "Enter") saveRenamedProfile(profile.id);
 							}}
 						/>
-						<button on:click={() => saveRenamedProfile(profile)} title={$t("profile_manager.save")} aria-label={$t("profile_manager.save")}>
+						<button on:click={() => saveRenamedProfile(profile.id)} title={$t("profile_manager.save")} aria-label={$t("profile_manager.save")}>
 							<FloppyDisk size="20" class="text-green-500" />
 						</button>
 					{:else}
-						<label class="grow text-neutral-400" for={`profile-${encodeURIComponent(profile)}`}>{id ? profile.split("/")[1] : profile}</label>
-						<button on:click={() => duplicateProfile(profile)} title={$t("profile_manager.duplicate")} aria-label={$t("profile_manager.duplicate")}>
+						<label class="grow text-neutral-400" for={`profile-${profile.id}`}>{id ? profile.name.split("/")[1] : profile.name}</label>
+						<button on:click={() => duplicateProfile(profile.id)} title={$t("profile_manager.duplicate")} aria-label={$t("profile_manager.duplicate")}>
 							<Copy size="20" class="text-neutral-400" />
 						</button>
-						{#if profile != value}
-							<button on:click={() => (renamingProfile = newId = profile)} title={$t("profile_manager.rename")} aria-label={$t("profile_manager.rename")}>
+						{#if profile.id !== value}
+							<button
+								on:click={() => {
+									renamingProfile = profile.id;
+									newName = profile.name;
+								}}
+								title={$t("profile_manager.rename")}
+								aria-label={$t("profile_manager.rename")}
+							>
 								<Pencil size="20" class="text-neutral-400" />
 							</button>
-							<button on:click={() => deleteProfile(profile)} title={$t("profile_manager.delete")} aria-label={$t("profile_manager.delete")}>
+							<button on:click={() => deleteProfile(profile.id)} title={$t("profile_manager.delete")} aria-label={$t("profile_manager.delete")}>
 								<Trash size="20" class="text-neutral-400" />
 							</button>
 						{/if}
@@ -313,28 +337,28 @@
 	</svelte:fragment>
 
 	<table class="w-full text-neutral-300 divide-y divide-neutral-500!">
-		{#each Object.entries(applicationProfiles).sort( (a, b) => (a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0])), ) as [appName, devices]}
+		{#each Object.entries(applicationProfiles).sort( (a, b) => (a[0] === "opendeck_default" ? -1 : b[0] === "opendeck_default" ? 1 : a[0].localeCompare(b[0])), ) as [appName, devices]}
 			{#if devices[device.id]}
 				<tr class="h-12">
-					<td>{appName == "opendeck_default" ? $t("profile_manager.default_profile") : appName}:</td>
+					<td>{appName === "opendeck_default" ? $t("profile_manager.default_profile") : appName}:</td>
 					<td class="select-wrapper">
 						<select
 							bind:value={applicationProfiles[appName][device.id]}
 							class="w-full"
 							aria-label={$t("profile_manager.application_profiles.aria", {
-								name: appName == "opendeck_default" ? $t("profile_manager.default_profile") : appName,
+								name: appName === "opendeck_default" ? $t("profile_manager.default_profile") : appName,
 							})}
 						>
 							{#each Object.entries(folders) as [id, profiles]}
 								{#if id && profiles.length}
 									<optgroup label={id}>
 										{#each profiles as profile}
-											<option value={profile}>{profile.split("/")[1]}</option>
+											<option value={profile.id}>{profile.name.split("/")[1]}</option>
 										{/each}
 									</optgroup>
 								{:else}
 									{#each profiles as profile}
-										<option value={profile}>{profile}</option>
+										<option value={profile.id}>{profile.name}</option>
 									{/each}
 								{/if}
 							{/each}
@@ -369,12 +393,12 @@
 						{#if id && profiles.length}
 							<optgroup label={id}>
 								{#each profiles as profile}
-									<option value={profile}>{profile.split("/")[1]}</option>
+									<option value={profile.id}>{profile.name.split("/")[1]}</option>
 								{/each}
 							</optgroup>
 						{:else}
 							{#each profiles as profile}
-								<option value={profile}>{profile}</option>
+								<option value={profile.id}>{profile.name}</option>
 							{/each}
 						{/if}
 					{/each}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { DeviceInfo } from "$lib/DeviceInfo";
-	import type { Profile } from "$lib/Profile";
+	import type { ProfileView } from "$lib/ProfileView.ts";
 
 	import { initPortBase } from "$lib/ports";
 	import { inspectedParentAction } from "$lib/propertyInspector";
@@ -18,7 +18,7 @@
 
 	let devices: { [id: string]: DeviceInfo } = {};
 	let selectedDevice: string;
-	let selectedProfiles: { [id: string]: Profile } = {};
+	let selectedProfiles: { [id: string]: ProfileView } = {};
 
 	initPortBase();
 </script>

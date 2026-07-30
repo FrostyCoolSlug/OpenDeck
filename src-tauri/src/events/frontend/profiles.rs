@@ -1,102 +1,135 @@
 use super::Error;
+use log::debug;
 
-use crate::shared::DEVICES;
-use crate::store::profiles::{PROFILE_STORES, acquire_locks_mut, get_device_profiles, save_profile_now};
+use crate::shared::{DEVICES, ProfileEntry, ProfileView};
+use crate::store::profiles::{acquire_locks_mut, get_device_profiles, save_profile_now};
 
+use crate::events::outbound::{devices, will_appear};
+use crate::store::profile::get_profile_entries;
 use tauri::{AppHandle, Emitter, Manager, command};
+use uuid::Uuid;
 
 #[command]
-pub fn get_profiles(device: &str) -> Result<Vec<String>, Error> {
-	Ok(get_device_profiles(device)?)
+pub fn get_profiles(device: &str) -> Vec<ProfileEntry> {
+	get_profile_entries(device)
 }
 
 #[command]
-pub async fn get_selected_profile(device: String) -> Result<crate::shared::Profile, Error> {
-	let mut locks = acquire_locks_mut().await;
-	if !DEVICES.contains_key(&device) {
+pub async fn get_selected_profile(device: String) -> Result<ProfileView, Error> {
+	debug!("Getting Active Profile for: {}", device);
+	let Some(device_info) = DEVICES.get(&device) else {
 		return Err(Error::new(format!("device {device} not found")));
-	}
+	};
 
-	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
-	let profile = locks.profile_stores.get_profile_store(&DEVICES.get(&device).unwrap(), &selected_profile)?;
+	let mut locks = acquire_locks_mut().await;
+	let selected = locks.device_configs.get_selected_profile(&device)?;
 
-	Ok(profile.value.clone())
+	let profile = locks.active_profiles.get_profile(&device_info, selected)?;
+
+	let profile_view = ProfileView::from(profile);
+	debug!("{:#?}", profile_view);
+
+	Ok(profile_view)
 }
 
-#[allow(clippy::flat_map_identity)]
 #[command]
-pub async fn set_selected_profile(device: String, id: String) -> Result<(), Error> {
-	let mut locks = acquire_locks_mut().await;
-	if !DEVICES.contains_key(&device) {
+pub async fn set_selected_profile(device: String, id: Uuid) -> Result<(), Error> {
+	debug!("Setting Active Profile for: {} to {}", device, id);
+
+	let Some(device_info) = DEVICES.get(&device) else {
+		debug!("Device {} not found", device);
 		return Err(Error::new(format!("device {device} not found")));
+	};
+
+	// Firstly, we should get the full current profile
+	let mut locks = acquire_locks_mut().await;
+	let current_id = locks.device_configs.get_selected_profile(&device)?;
+
+	if current_id == id {
+		// Do nothing here, nothing is changing, and we shouldn't trigger a will_appear on something
+		// without first telling it to disappear.
+		return Ok(());
 	}
 
-	// If a profile save is pending for this device, save it immediately to prevent losing profile data
-	if let Err(error) = save_profile_now(&device, &mut locks).await {
-		log::error!("Failed to save profile for device {device}: {error}");
-	}
+	// Get the full current profile, and tell its actions they are going to disappear
+	let current_profile = locks.active_profiles.get_profile(&device_info, current_id)?;
+	let current_page = &current_profile.pages[current_profile.current];
+	current_page.save()?;
 
-	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
-
-	if selected_profile != id {
-		let old_profile = &locks.profile_stores.get_profile_store(&DEVICES.get(&device).unwrap(), &selected_profile)?.value;
-		for instance in old_profile
-			.keys
-			.iter()
-			.flatten()
-			.chain(&mut old_profile.sliders.iter().flatten())
-			.chain(&mut old_profile.infobars.iter().flatten())
-		{
-			if !matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction") {
-				let _ = crate::events::outbound::will_appear::will_disappear(instance, false).await;
-			} else {
-				for child in instance.children.as_ref().unwrap() {
-					let _ = crate::events::outbound::will_appear::will_disappear(child, false).await;
-				}
-			}
-		}
-		let _ = crate::events::outbound::devices::clear_screen(device.clone()).await;
-	}
-
-	// We must use the mutable version of get_profile_store in order to create the store if it does not exist.
-	let store = locks.profile_stores.get_profile_store_mut(&DEVICES.get(&device).unwrap(), &id).await?;
-	let new_profile = &store.value;
-	for instance in new_profile
-		.keys
-		.iter()
-		.flatten()
-		.chain(&mut new_profile.sliders.iter().flatten())
-		.chain(&mut new_profile.infobars.iter().flatten())
-	{
+	// We need to itearte over all the page actions, and tell them to disappear
+	for instance in current_page.actions() {
+		// So multiaction and toggleaction are special, they have children and those need to go
 		if !matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction") {
-			let _ = crate::events::outbound::will_appear::will_appear(instance).await;
+			let _ = will_appear::will_disappear(instance, false).await;
 		} else {
 			for child in instance.children.as_ref().unwrap() {
-				let _ = crate::events::outbound::will_appear::will_appear(child).await;
+				let _ = will_appear::will_disappear(child, false).await;
 			}
 		}
 	}
-	store.save()?;
 
-	locks.device_stores.set_selected_profile(&device, id)?;
+	// Send out a message to clear everything from this screen
+	let _ = devices::clear_screen(device.clone()).await?;
+
+	// Next, grab the profile we're about to change to
+	let new_profile = locks.active_profiles.get_profile(&device_info, id)?;
+	let new_page = &new_profile.pages[new_profile.current];
+
+	// Let all the actions know they're going to appear
+	for instance in new_page.actions() {
+		if !matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction") {
+			let _ = will_appear::will_appear(instance).await;
+		} else {
+			for child in instance.children.as_ref().unwrap() {
+				let _ = will_appear::will_appear(child).await;
+			}
+		}
+	}
+
+	// Finally, commit the profile change
+	let _ = locks.device_configs.set_selected_profile(&device, id)?;
 
 	Ok(())
 }
 
 #[command]
-pub async fn delete_profile(device: String, profile: String) {
-	let mut profile_stores = PROFILE_STORES.write().await;
-	profile_stores.delete_profile(&device, &profile);
+pub async fn create_profile(device: String, name: String) -> Result<ProfileEntry, Error> {
+	let Some(device_info) = DEVICES.get(&device) else {
+		return Err(Error::new(format!("device {device} not found")));
+	};
+
+	let mut locks = acquire_locks_mut().await;
+	let entry = locks.active_profiles.create_profile(&device_info, name)?;
+
+	Ok(entry)
 }
 
 #[command]
-pub async fn rename_profile(device: String, old_id: String, new_id: String, retain: bool) -> Result<(), Error> {
-	let mut locks = acquire_locks_mut().await;
-	if !DEVICES.contains_key(&device) {
+pub async fn delete_profile(device: String, profile: Uuid) -> Result<(), Error> {
+	let Some(device_info) = DEVICES.get(&device) else {
 		return Err(Error::new(format!("device {device} not found")));
+	};
+
+	let mut locks = acquire_locks_mut().await;
+	let current_id = locks.device_configs.get_selected_profile(&device)?;
+
+	if profile == current_id {
+		return Err(Error::new("Cannot delete active profile".to_string()));
 	}
 
-	locks.profile_stores.rename_profile(&DEVICES.get(&device).unwrap(), &old_id, &new_id, retain).await?;
+	// Nuke it
+	locks.active_profiles.delete_profile(&device_info, profile)?;
+	Ok(())
+}
+
+#[command]
+pub async fn rename_profile(device: String, id: Uuid, name: String) -> Result<(), Error> {
+	let Some(device_info) = DEVICES.get(&device) else {
+		return Err(Error::new(format!("device {device} not found")));
+	};
+
+	let mut locks = acquire_locks_mut().await;
+	locks.active_profiles.rename_profile(&device_info, id, &name)?;
 
 	Ok(())
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Action } from "$lib/Action";
 	import type { ActionInstance } from "$lib/ActionInstance";
-	import type { Profile } from "$lib/Profile";
+	import type { ProfileView } from "$lib/ProfileView";
 
 	import Trash from "phosphor-svelte/lib/Trash";
 	import Key from "./Key.svelte";
@@ -12,7 +12,7 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import { onMount, tick } from "svelte";
 
-	export let profile: Profile;
+	export let profile: ProfileView;
 
 	let listEl: HTMLDivElement;
 	onMount(() => {

@@ -2,6 +2,7 @@ import type { PageView } from "$lib/PageView.ts";
 
 export type ProfileView = {
 	device: string;
+
 	id: string;
 	name: string;
 

@@ -2,7 +2,7 @@
 	import type { ActionInstance } from "$lib/ActionInstance";
 	import type { Context } from "$lib/Context";
 	import type { DeviceInfo } from "$lib/DeviceInfo";
-	import type { Profile } from "$lib/Profile";
+	import type { ProfileView } from "$lib/ProfileView";
 	import type { CopiedItem } from "$lib/propertyInspector";
 
 	import Key from "./Key.svelte";
@@ -13,9 +13,11 @@
 	import { invoke } from "@tauri-apps/api/core";
 
 	export let device: DeviceInfo;
-	export let profile: Profile;
+	export let profile: ProfileView;
 
 	export let selectedDevice: string;
+
+	$: page = profile.current_page;
 
 	function handleDragStart({ dataTransfer }: DragEvent, controller: string, position: number) {
 		if (!dataTransfer) return;
@@ -33,7 +35,7 @@
 
 	async function handleDrop({ dataTransfer }: DragEvent, controller: string, position: number) {
 		let context = { device: device.id, profile: profile.id, controller, position };
-		let array = controller == "Encoder" ? profile.sliders : controller == "Infobar" ? profile.infobars : profile.keys;
+		let array = controller == "Encoder" ? page.encoders : controller == "Infobar" ? page.infobars : page.keys;
 		if (dataTransfer?.getData("action")) {
 			let action = JSON.parse(dataTransfer?.getData("action"));
 			if (array[position]) {
@@ -43,7 +45,7 @@
 			profile = profile;
 		} else if (dataTransfer?.getData("controller")) {
 			let oldController = dataTransfer?.getData("controller");
-			let oldArray = oldController == "Encoder" ? profile.sliders : oldController == "Infobar" ? profile.infobars : profile.keys;
+			let oldArray = oldController == "Encoder" ? page.encoders : oldController == "Infobar" ? page.infobars : page.keys;
 			let oldPosition = parseInt(dataTransfer?.getData("position"));
 			let response: ActionInstance = await invoke("move_instance", {
 				source: { device: device.id, profile: profile.id, controller: oldController, position: oldPosition },
@@ -59,7 +61,7 @@
 	}
 
 	async function handlePaste(item: CopiedItem, destination: Context) {
-		let array = destination.controller == "Encoder" ? profile.sliders : destination.controller == "Infobar" ? profile.infobars : profile.keys;
+		let array = destination.controller == "Encoder" ? page.encoders : destination.controller == "Infobar" ? page.infobars : page.keys;
 
 		if (item.type == "action") {
 			if (array[destination.position]) return;
@@ -183,7 +185,7 @@
 					{#each { length: device.columns } as _, c}
 						<Key
 							context={{ device: device.id, profile: profile.id, controller: "Keypad", position: r * device.columns + c }}
-							bind:inslot={profile.keys[r * device.columns + c]}
+							bind:inslot={page.keys[r * device.columns + c]}
 							on:dragover={handleDragOver}
 							on:drop={(event) => handleDrop(event, "Keypad", r * device.columns + c)}
 							on:dragstart={(event) => handleDragStart(event, "Keypad", r * device.columns + c)}
@@ -201,7 +203,7 @@
 			{#each { length: device.encoders } as _, i}
 				<Key
 					context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
-					bind:inslot={profile.sliders[i]}
+					bind:inslot={page.encoders[i]}
 					on:dragover={handleDragOver}
 					on:drop={(event) => handleDrop(event, "Encoder", i)}
 					on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
@@ -221,7 +223,7 @@
 						<div class="px-3.5 py-[3.5px]">
 							<Key
 								context={{ device: device.id, profile: profile.id, controller: "Infobar", position: j }}
-								bind:inslot={profile.infobars[j]}
+								bind:inslot={page.infobars[j]}
 								on:dragover={handleDragOver}
 								on:drop={(event) => handleDrop(event, "Infobar", j)}
 								on:dragstart={(event) => handleDragStart(event, "Infobar", j)}
@@ -235,7 +237,7 @@
 				{/if}
 				<Key
 					context={{ device: device.id, profile: profile.id, controller: "Keypad", position: device.rows * device.columns + i }}
-					bind:inslot={profile.keys[device.rows * device.columns + i]}
+					bind:inslot={page.keys[device.rows * device.columns + i]}
 					on:dragover={handleDragOver}
 					on:drop={(event) => handleDrop(event, "Keypad", device.rows * device.columns + i)}
 					on:dragstart={(event) => handleDragStart(event, "Keypad", device.rows * device.columns + i)}

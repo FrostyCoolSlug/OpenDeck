@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { DeviceInfo } from "$lib/DeviceInfo";
-	import type { Profile } from "$lib/Profile";
+	import type { ProfileView } from "$lib/ProfileView.ts";
 
 	import { t } from "$lib/i18n";
 	import { profileManager } from "$lib/singletons";
@@ -9,9 +9,12 @@
 	import { listen } from "@tauri-apps/api/event";
 	import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
+
 	export let devices: { [id: string]: DeviceInfo } = {};
 	export let value: string;
-	export let selectedProfiles: { [id: string]: Profile } = {};
+	export let selectedProfiles: { [id: string]: ProfileView } = {};
+
+
 
 	let registered: string[] = [];
 	$: {
@@ -19,7 +22,7 @@
 		for (const [id, device] of Object.entries(devices)) {
 			if (!registered.includes(id)) {
 				(async () => {
-					let profile: Profile = await invoke("get_selected_profile", { device: device.id });
+					let profile: ProfileView = await invoke("get_selected_profile", { device: device.id });
 					selectedProfiles[id] = profile;
 					await invoke("set_selected_profile", { device: id, id: profile.id });
 				})();
