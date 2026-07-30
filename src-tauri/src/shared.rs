@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::env::var;
+use std::fmt;
+use std::fmt::Debug;
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -8,6 +10,7 @@ use serde_inline_default::serde_inline_default;
 
 use anyhow::{Result, bail};
 use dashmap::DashMap;
+use log::debug;
 use streamdeck_strip_render::{get_incremental_renderer, strip_renderer::StripRenderer};
 use tauri::Manager;
 use tokio::sync::RwLock;
@@ -436,6 +439,12 @@ pub struct ActionInstance {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct ProfileEntry {
+	pub id: Uuid,
+	pub name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Profile {
 	pub id: String,
 	pub keys: Vec<Option<ActionInstance>>,
@@ -447,7 +456,7 @@ pub struct Profile {
 	pub stale: bool,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProfileView {
 	pub device: String,
 	pub id: Uuid,
@@ -488,6 +497,16 @@ impl From<&Page> for PageView {
 			encoders: page.encoders.clone(),
 			infobars: page.infobars.clone(),
 		}
+	}
+}
+
+impl Debug for PageView {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("PageView")
+			.field("keys", &self.keys.len())
+			.field("encoders", &self.encoders.len())
+			.field("infobars", &self.infobars.len())
+			.finish()
 	}
 }
 

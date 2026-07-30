@@ -1,4 +1,4 @@
-use crate::shared::config_dir;
+use crate::shared::{config_dir, ProfileEntry};
 use crate::store::profile::manifest::ProfileManifest;
 use crate::store::profile::profile::PaginatedProfile;
 use anyhow::{Result, bail};
@@ -11,11 +11,6 @@ use uuid::Uuid;
 pub mod manifest;
 pub mod page;
 pub mod profile;
-
-pub struct ProfileEntry {
-	pub id: Uuid,
-	pub name: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceConfig {
