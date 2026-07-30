@@ -300,26 +300,30 @@ pub struct Locks<'a> {
 	pub device_stores: RwLockReadGuard<'a, DeviceStores>,
 	pub profile_stores: RwLockReadGuard<'a, ProfileStores>,
 	pub active_profiles: RwLockReadGuard<'a, ActiveProfiles>,
+	pub device_configs: RwLockReadGuard<'a, DeviceConfigs>,
 }
 
 pub async fn acquire_locks() -> Locks<'static> {
 	let device_stores = DEVICE_STORES.read().await;
 	let profile_stores = PROFILE_STORES.read().await;
 	let active_profiles = ACTIVE_PROFILES.read().await;
-	Locks { device_stores, profile_stores, active_profiles }
+	let device_configs = DEVICE_CONFIG.read().await;
+	Locks { device_stores, profile_stores, active_profiles, device_configs }
 }
 
 pub struct LocksMut<'a> {
 	pub device_stores: RwLockWriteGuard<'a, DeviceStores>,
 	pub profile_stores: RwLockWriteGuard<'a, ProfileStores>,
 	pub active_profiles: RwLockWriteGuard<'a, ActiveProfiles>,
+	pub device_configs: RwLockWriteGuard<'a, DeviceConfigs>,
 }
 
 pub async fn acquire_locks_mut() -> LocksMut<'static> {
 	let device_stores = DEVICE_STORES.write().await;
 	let profile_stores = PROFILE_STORES.write().await;
 	let active_profiles = ACTIVE_PROFILES.write().await;
-	LocksMut { device_stores, profile_stores, active_profiles }
+	let device_configs = DEVICE_CONFIG.write().await;
+	LocksMut { device_stores, profile_stores, active_profiles, device_configs }
 }
 
 pub async fn get_slot<'a>(context: &crate::shared::Context, locks: &'a Locks<'_>) -> Result<&'a Option<crate::shared::ActionInstance>, anyhow::Error> {

@@ -30,6 +30,18 @@ pub struct PaginatedProfile {
 }
 
 impl PaginatedProfile {
+	/// Creates a new profile with a single page attached
+	pub(crate) fn new(device: &str, name: &str) -> Self {
+		Self {
+			device: device.to_string(),
+			id: Uuid::new_v4(),
+			name: name.to_string(),
+			pinned: Page::default(),
+			current: 0,
+			pages: vec![Page::default()],
+		}
+	}
+
 	pub(crate) fn try_from_manifest(manifest: ProfileManifest) -> anyhow::Result<Self> {
 		// Realistically, we need a cleaner way to do this, device shouldn't need to be passed
 		// around here, it's just needed for pathing.
