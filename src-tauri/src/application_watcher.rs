@@ -3,12 +3,17 @@ use crate::store::{NotProfile, Store};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use crate::store::profiles::DEVICE_CONFIG;
 use active_win_pos_rs::get_active_window;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 use tauri::{Emitter, Manager};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
-pub type ApplicationProfiles = HashMap<String, HashMap<String, String>>;
+type ApplicationName = String;
+type DeviceId = String;
+type ProfileId = Uuid;
+pub type ApplicationProfiles = HashMap<ApplicationName, HashMap<DeviceId, ProfileId>>;
 impl NotProfile for ApplicationProfiles {}
 
 pub static APPLICATIONS: RwLock<Vec<String>> = RwLock::const_new(Vec::new());
@@ -20,7 +25,7 @@ pub static APPLICATION_PLUGINS: LazyLock<RwLock<HashMap<String, Vec<String>>>> =
 #[derive(Clone, serde::Serialize)]
 pub struct SwitchProfileEvent {
 	device: String,
-	profile: String,
+	profile: Uuid,
 }
 
 pub fn init_application_watcher() {
@@ -48,14 +53,17 @@ pub fn init_application_watcher() {
 					let Some(profile) = application.and_then(|d| d.get(device)).or(default.and_then(|d| d.get(device))) else {
 						continue;
 					};
-					if crate::store::profiles::DEVICE_STORES.write().await.get_selected_profile(device).ok().as_ref() == Some(profile) {
+
+					let current_profile = DEVICE_CONFIG.write().await.get_selected_profile(device).ok();
+					if current_profile == Some(*profile) {
 						continue;
 					}
+
 					let _ = app_handle.get_webview_window("main").unwrap().emit(
 						"switch_profile",
 						SwitchProfileEvent {
 							device: device.clone(),
-							profile: profile.clone(),
+							profile: *profile,
 						},
 					);
 				}

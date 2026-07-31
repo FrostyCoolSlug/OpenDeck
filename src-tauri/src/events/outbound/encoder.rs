@@ -25,10 +25,11 @@ struct DialRotateEvent {
 
 pub async fn dial_rotate(device: &str, index: u8, ticks: i16) -> Result<(), anyhow::Error> {
 	let mut locks = acquire_locks_mut().await;
-	let selected_profile = locks.device_stores.get_selected_profile(device)?;
+	let selected_profile = locks.device_configs.get_selected_profile(device)?;
+
 	let context = ActionContext {
 		device: device.to_owned(),
-		profile: selected_profile.to_owned(),
+		profile: selected_profile,
 		controller: "Encoder".to_owned(),
 		position: index,
 		index: 0,
@@ -72,10 +73,10 @@ struct DialPressEvent {
 
 pub async fn dial_press(device: &str, event: &'static str, index: u8) -> Result<(), anyhow::Error> {
 	let mut locks = acquire_locks_mut().await;
-	let selected_profile = locks.device_stores.get_selected_profile(device)?;
+	let selected_profile = locks.device_configs.get_selected_profile(device)?;
 	let context = ActionContext {
 		device: device.to_owned(),
-		profile: selected_profile.to_owned(),
+		profile: selected_profile,
 		controller: "Encoder".to_owned(),
 		position: index,
 		index: 0,
@@ -121,10 +122,10 @@ struct TouchTapEvent {
 
 pub async fn touch_tap(device: &str, index: u8, x: u16, y: u16, hold: bool) -> Result<(), anyhow::Error> {
 	let mut locks = acquire_locks_mut().await;
-	let selected_profile = locks.device_stores.get_selected_profile(device)?;
+	let selected_profile = locks.device_configs.get_selected_profile(device)?;
 	let context = ActionContext {
 		device: device.to_owned(),
-		profile: selected_profile.to_owned(),
+		profile: selected_profile,
 		controller: "Encoder".to_owned(),
 		position: index,
 		index: 0,

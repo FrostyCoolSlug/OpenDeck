@@ -1,10 +1,11 @@
 use super::Error;
 
 use crate::shared::{Action, ActionContext, ActionInstance, ActionState, Context, config_dir};
-use crate::store::profiles::{LocksMut, acquire_locks, acquire_locks_mut, get_instance_mut, get_slot, get_slot_mut, save_profile_now};
+use crate::store::profiles::{LocksMut, acquire_locks, acquire_locks_mut, get_instance_mut, get_slot, get_slot_mut, save_profile_now, DEVICE_CONFIG};
 
 use tauri::{AppHandle, Emitter, Manager, command};
 use tokio::fs::remove_dir_all;
+use crate::events::outbound::devices;
 
 #[command]
 pub async fn create_instance(app: AppHandle, mut action: Action, context: Context) -> Result<Option<ActionInstance>, Error> {
@@ -79,7 +80,7 @@ fn instance_images_dir(context: &ActionContext) -> std::path::PathBuf {
 	config_dir()
 		.join("images")
 		.join(&context.device)
-		.join(&context.profile)
+		.join(&context.profile.to_string())
 		.join(format!("{}.{}.{}", context.controller, context.position, context.index))
 }
 
@@ -268,11 +269,12 @@ pub async fn set_child_delay(parent_context: ActionContext, index: usize, delay_
 
 #[command]
 pub async fn update_image(context: Context, image: Option<String>) {
-	if Some(&context.profile) != crate::store::profiles::DEVICE_STORES.write().await.get_selected_profile(&context.device).ok().as_ref() {
+	let current = DEVICE_CONFIG.write().await.get_selected_profile(&context.device).ok();
+	if Some(context.profile) != current {
 		return;
 	}
 
-	if let Err(error) = crate::events::outbound::devices::update_image(context, image).await {
+	if let Err(error) = devices::update_image(context, image).await {
 		log::warn!("Failed to update device image: {}", error);
 	}
 }

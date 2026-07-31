@@ -52,7 +52,8 @@ impl DiskActionContext {
 	fn into_action_context(self, device: String, profile: String) -> ActionContext {
 		ActionContext {
 			device,
-			profile,
+			profile: Default::default(),
+
 			controller: self.controller,
 			position: self.position,
 			index: self.index,
@@ -70,11 +71,13 @@ pub struct DiskActionInstance {
 	pub children: Option<Vec<DiskActionInstance>>,
 }
 
+
+// This is dead code at this point
 impl From<ActionInstance> for DiskActionInstance {
 	fn from(mut value: ActionInstance) -> Self {
 		let disk_context: DiskActionContext = value.context.clone().into();
 		let config_dir = crate::shared::config_dir();
-		let image_dir = config_dir.join("images").join(&value.context.device).join(&value.context.profile).join(disk_context.to_string());
+		let image_dir = config_dir.join("images").join(&value.context.device).join(&value.context.profile.to_string()).join(disk_context.to_string());
 
 		let normalise_path = |value: &str| -> String {
 			let path = Path::new(value);

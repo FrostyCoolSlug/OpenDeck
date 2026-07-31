@@ -355,7 +355,7 @@ pub struct TriggerDescription {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Context {
 	pub device: String,
-	pub profile: String,
+	pub profile: Uuid,
 	pub controller: String,
 	pub position: u8,
 }
@@ -364,7 +364,7 @@ pub struct Context {
 #[derive(Clone, PartialEq, Eq, Hash, serde_with::SerializeDisplay, serde_with::DeserializeFromStr)]
 pub struct ActionContext {
 	pub device: String,
-	pub profile: String,
+	pub profile: Uuid,
 	pub controller: String,
 	pub position: u8,
 	pub index: u16,
@@ -384,7 +384,7 @@ impl std::str::FromStr for ActionContext {
 			return Err(anyhow::anyhow!("not enough segments"));
 		}
 		let device = segments[0].to_owned();
-		let profile = segments[1].to_owned();
+		let profile = Uuid::from_str(&segments[1].to_owned())?;
 		let controller = segments[2].to_owned();
 		let position = u8::from_str(segments[3])?;
 		let index = u16::from_str(segments[4])?;
