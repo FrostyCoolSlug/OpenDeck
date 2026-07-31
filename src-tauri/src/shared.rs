@@ -430,6 +430,7 @@ impl From<&ActionContext> for Context {
 /// An instance of an action.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ActionInstance {
+	pub id: Uuid,
 	pub action: Action,
 	pub context: ActionContext,
 	pub states: Vec<ActionState>,

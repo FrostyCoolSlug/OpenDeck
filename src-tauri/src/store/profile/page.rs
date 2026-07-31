@@ -100,6 +100,10 @@ impl Page {
 		self.keys.iter().chain(&self.encoders).chain(&self.infobars).flatten()
 	}
 
+	pub fn actions_mut(&mut self) -> impl Iterator<Item = &mut ActionInstance> {
+		self.keys.iter_mut().chain(&mut self.encoders).chain(&mut self.infobars).flatten()
+	}
+
 	fn get_page_path(&self) -> PathBuf {
 		profile_base_path()
 			.join(self.profile_device.clone())
@@ -151,6 +155,7 @@ impl PageStorage {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ActionInstanceStorage {
 	/// An instance of an action.
+	pub id: Uuid,
 	pub action: Action,
 	pub context: ActionContextStorage,
 	pub states: Vec<ActionState>,
@@ -162,6 +167,7 @@ pub struct ActionInstanceStorage {
 impl From<ActionInstance> for ActionInstanceStorage {
 	fn from(value: ActionInstance) -> Self {
 		ActionInstanceStorage {
+			id: value.id,
 			action: value.action,
 			context: ActionContextStorage::from(value.context),
 			states: value.states,
@@ -175,6 +181,7 @@ impl From<ActionInstance> for ActionInstanceStorage {
 impl ActionInstanceStorage {
 	fn into_action_instance(self, device: &str, profile_id: Uuid) -> ActionInstance {
 		ActionInstance {
+			id: self.id,
 			action: self.action.clone(),
 			context: self.context.into_action_context(device, profile_id),
 			states: self.states.clone(),

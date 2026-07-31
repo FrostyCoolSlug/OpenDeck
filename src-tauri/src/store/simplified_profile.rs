@@ -9,6 +9,7 @@ use std::{
 
 use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)]
 pub struct DiskActionContext {
@@ -179,6 +180,7 @@ impl DiskActionInstance {
 		action.property_inspector = reconstruct_path(&action.property_inspector);
 
 		ActionInstance {
+			id: Uuid::new_v4(),
 			context: self.context.into_action_context(device, profile),
 			action,
 			states,

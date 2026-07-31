@@ -5,6 +5,7 @@ use crate::store::profiles::{LocksMut, acquire_locks, acquire_locks_mut, get_ins
 
 use tauri::{AppHandle, Emitter, Manager, command};
 use tokio::fs::remove_dir_all;
+use uuid::Uuid;
 use crate::events::outbound::devices;
 
 #[command]
@@ -28,6 +29,7 @@ pub async fn create_instance(app: AppHandle, mut action: Action, context: Contex
 		};
 
 		let instance = ActionInstance {
+			id: Uuid::new_v4(),
 			action: action.clone(),
 			context: ActionContext::from_context(context.clone(), index),
 			states: action.states.clone(),
@@ -54,6 +56,7 @@ pub async fn create_instance(app: AppHandle, mut action: Action, context: Contex
 		Ok(slot)
 	} else {
 		let instance = ActionInstance {
+			id: Uuid::new_v4(),
 			action: action.clone(),
 			context: ActionContext::from_context(context.clone(), 0),
 			states: action.states.clone(),
