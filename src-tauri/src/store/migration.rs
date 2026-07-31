@@ -109,6 +109,7 @@ fn migrate_device_selection(profiles_root: &Path, device: &str) {
 	{
 		warn!("Failed to persist migrated device selection for '{device}': {e}");
 	}
+	let _ = backup_legacy_file(&config_path);
 }
 
 /// Read + parse a legacy profile file directly (rather than going through `Store::new`, which
