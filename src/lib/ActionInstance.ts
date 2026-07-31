@@ -2,6 +2,7 @@ import type { Action } from "./Action.ts";
 import type { ActionState } from "./ActionState.ts";
 
 export type ActionInstance = {
+	id: string;
 	action: Action;
 	context: string;
 	states: ActionState[];
