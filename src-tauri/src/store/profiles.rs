@@ -1,11 +1,10 @@
 use crate::shared::{ActionInstance, DEVICES};
+use crate::store::active_profile::{ActiveProfiles, DeviceConfigs};
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::store::active_profile::{ActiveProfiles, DeviceConfigs};
-use anyhow::anyhow;
-
+use anyhow::{Result, anyhow};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Currently Active Profiles
@@ -15,8 +14,9 @@ pub static PROFILE_CONFIGS: LazyLock<RwLock<ActiveProfiles>> = LazyLock::new(|| 
 pub static DEVICE_CONFIGS: LazyLock<RwLock<DeviceConfigs>> = LazyLock::new(|| RwLock::new(DeviceConfigs { devices: HashMap::new() }));
 
 pub struct Locks<'a> {
-	pub profile_configs: RwLockReadGuard<'a, ActiveProfiles>,
+	#[allow(dead_code)]
 	pub device_configs: RwLockReadGuard<'a, DeviceConfigs>,
+	pub profile_configs: RwLockReadGuard<'a, ActiveProfiles>,
 }
 
 pub async fn acquire_locks() -> Locks<'static> {
@@ -107,15 +107,14 @@ pub async fn mark_profile_stale(device_id: &str, locks: &mut LocksMut<'_>) -> Re
 	Ok(())
 }
 
-pub async fn save_profile_now(device_id: &str, locks: &mut LocksMut<'_>) -> Result<(), anyhow::Error> {
-	// let selected_profile = locks.device_stores.get_selected_profile(device_id)?;
-	// let device = DEVICES.get(device_id).ok_or_else(|| anyhow!("device not found"))?;
-	// let store = locks.profile_stores.get_profile_store_mut(&device, &selected_profile).await?;
-	//
-	// store.save()?;
-	// store.value.stale = false;
+pub async fn save_active_page(device_id: &str, locks: &mut LocksMut<'_>) -> Result<()> {
+	let device = DEVICES.get(device_id).ok_or_else(|| anyhow!("device not found"))?;
+	let selected_profile = locks.device_configs.get_selected_profile(device_id)?;
 
-	Ok(())
+	let profile = locks.profile_configs.get_profile_mut(&device, selected_profile)?;
+	let page = &mut profile.pages[profile.current];
+
+	page.save()
 }
 
 pub async fn flush_stale_profiles() -> Result<(), anyhow::Error> {
