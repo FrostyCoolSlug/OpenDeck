@@ -1,7 +1,7 @@
-use crate::shared::{DeviceInfo, ProfileEntry};
+use crate::shared::{ActionContext, DeviceInfo, ProfileEntry};
 use crate::store::profile::manifest::ProfileManifest;
 use crate::store::profile::profile::PaginatedProfile;
-use crate::store::profile::{DeviceConfig, get_profile_entries, profile};
+use crate::store::profile::{DeviceConfig, get_profile_entries};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -72,6 +72,31 @@ impl ActiveProfiles {
 		self.unload_profile(device, id);
 
 		Ok(())
+	}
+
+	pub fn get_actions_for_plugin(&self, plugin: &str) -> Vec<ActionContext> {
+		let mut actions = vec![];
+
+		for profiles in self.profiles.values() {
+			for instance in profiles.pages[profiles.current].actions() {
+				if instance.action.plugin == plugin {
+					actions.push(instance.context.clone());
+					continue;
+				}
+
+				let Some(children) = &instance.children else {
+					continue;
+				};
+
+				for child in children {
+					if child.action.plugin == plugin {
+						actions.push(child.context.clone());
+					}
+				}
+			}
+		}
+
+		actions
 	}
 }
 
