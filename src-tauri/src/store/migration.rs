@@ -10,10 +10,10 @@ use crate::store::profile::profile::PaginatedProfile;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::store::profile::DeviceConfig;
 use anyhow::Result;
 use log::{info, warn};
 use uuid::Uuid;
-use crate::store::profile::DeviceConfig;
 
 /// Fixed, arbitrary namespace used to deterministically derive a profile's new UUID from its
 /// legacy `device/id` string. This makes the sweep safe to interrupt and re-run: the same legacy
@@ -73,12 +73,7 @@ fn migrate_single_profile(profiles_root: &Path, device: &str, id: &str) -> Resul
 	let path = legacy_profile_path(profiles_root, device, id);
 	let legacy_profile = load_legacy_profile(&path)?;
 
-	let mut paginated = PaginatedProfile::try_from_legacy(device, legacy_profile)?;
-	// try_from_legacy mints a random id; force the deterministic one so re-running the sweep
-	// (or migrating the same profile twice for any reason) can never produce a duplicate.
-	paginated.id = uuid;
-	paginated.save()?;
-
+	PaginatedProfile::try_from_legacy(device, uuid, legacy_profile)?.save()?;
 	backup_legacy_file(&path)?;
 
 	info!("Migrated legacy profile '{id}' for device '{device}' -> {uuid}");
@@ -106,7 +101,12 @@ fn migrate_device_selection(profiles_root: &Path, device: &str) {
 		return;
 	}
 
-	if let Err(e) = (DeviceConfig { device: device.to_owned(), selected_profile: uuid }).save() {
+	if let Err(e) = (DeviceConfig {
+		device: device.to_owned(),
+		selected_profile: uuid,
+	})
+	.save()
+	{
 		warn!("Failed to persist migrated device selection for '{device}': {e}");
 	}
 }

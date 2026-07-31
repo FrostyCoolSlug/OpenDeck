@@ -1,7 +1,7 @@
-use crate::shared;
 use crate::store::profile::manifest::ProfileManifest;
 use crate::store::profile::page::Page;
 use crate::store::profile::profile_base_path;
+use crate::{shared, store};
 use anyhow::Result;
 use log::info;
 use std::fs;
@@ -10,11 +10,11 @@ use uuid::Uuid;
 // This is the 'full' profile object after we've pulled all the parts from disk
 #[derive(Debug, Clone)]
 pub struct PaginatedProfile {
-	/// The Device this Profile is associated with
-	pub(crate) device: String,
-
 	/// The Tracked ID of the Profile
 	pub(crate) id: Uuid,
+
+	/// The Device this Profile is associated with
+	pub(crate) device: String,
 
 	/// The Name of the Profile
 	pub(crate) name: String,
@@ -95,13 +95,11 @@ impl PaginatedProfile {
 		Ok(profile)
 	}
 
-	pub fn try_from_legacy(device: &str, value: shared::Profile) -> anyhow::Result<Self> {
-		let profile_id = Uuid::new_v4();
-
+	pub fn try_from_legacy(device: &str, profile_id: Uuid, value: shared::Profile) -> Result<Self> {
 		Ok(Self {
-			device: device.to_string(),
 			id: profile_id,
-			name: value.id,
+			device: device.to_string(),
+			name: value.id.to_string(),
 			pinned: Page {
 				id: Uuid::new_v4(),
 				keys: vec![],
