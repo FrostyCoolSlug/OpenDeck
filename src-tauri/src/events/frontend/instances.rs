@@ -1,7 +1,7 @@
 use super::Error;
 
 use crate::shared::{Action, ActionContext, ActionInstance, ActionState, Context, config_dir};
-use crate::store::profiles::{LocksMut, acquire_locks, acquire_locks_mut, get_instance_mut, get_slot, get_slot_mut, save_profile_now, DEVICE_CONFIG};
+use crate::store::profiles::{LocksMut, acquire_locks, acquire_locks_mut, get_instance_mut, get_slot, get_slot_mut, save_profile_now, DEVICE_CONFIGS};
 
 use tauri::{AppHandle, Emitter, Manager, command};
 use tokio::fs::remove_dir_all;
@@ -272,7 +272,7 @@ pub async fn set_child_delay(parent_context: ActionContext, index: usize, delay_
 
 #[command]
 pub async fn update_image(context: Context, image: Option<String>) {
-	let current = DEVICE_CONFIG.write().await.get_selected_profile(&context.device).ok();
+	let current = DEVICE_CONFIGS.write().await.get_selected_profile(&context.device).ok();
 	if Some(context.profile) != current {
 		return;
 	}

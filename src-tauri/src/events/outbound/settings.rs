@@ -4,6 +4,7 @@ use crate::shared::ActionContext;
 
 use std::io::Read;
 
+use crate::store::profiles;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -64,8 +65,8 @@ pub async fn did_receive_global_settings(context: &str, to_property_inspector: b
 	};
 
 	if to_property_inspector {
-		let profile_stores = crate::store::profiles::PROFILE_STORES.read().await;
-		for context in profile_stores.all_from_plugin(context) {
+		let profiles = profiles::PROFILE_CONFIGS.read().await;
+		for context in profiles.get_actions_for_plugin(context) {
 			send_to_property_inspector(&context, &data).await?;
 		}
 	} else {

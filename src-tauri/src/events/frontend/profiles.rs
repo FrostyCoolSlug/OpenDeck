@@ -24,7 +24,7 @@ pub async fn get_selected_profile(device: String) -> Result<ProfileView, Error> 
 	let mut locks = acquire_locks_mut().await;
 	let selected = locks.device_configs.get_selected_profile(&device)?;
 
-	let profile = locks.active_profiles.get_profile(&device_info, selected)?;
+	let profile = locks.profile_configs.get_profile(&device_info, selected)?;
 
 	let profile_view = ProfileView::from(profile);
 	debug!("{:#?}", profile_view);
@@ -52,7 +52,7 @@ pub async fn set_selected_profile(device: String, id: Uuid) -> Result<(), Error>
 	}
 
 	// Get the full current profile, and tell its actions they are going to disappear
-	let current_profile = locks.active_profiles.get_profile(&device_info, current_id)?;
+	let current_profile = locks.profile_configs.get_profile(&device_info, current_id)?;
 	let current_page = &current_profile.pages[current_profile.current];
 	current_page.save()?;
 
@@ -72,7 +72,7 @@ pub async fn set_selected_profile(device: String, id: Uuid) -> Result<(), Error>
 	let _ = devices::clear_screen(device.clone()).await?;
 
 	// Next, grab the profile we're about to change to
-	let new_profile = locks.active_profiles.get_profile(&device_info, id)?;
+	let new_profile = locks.profile_configs.get_profile(&device_info, id)?;
 	let new_page = &new_profile.pages[new_profile.current];
 
 	// Let all the actions know they're going to appear
@@ -99,7 +99,7 @@ pub async fn create_profile(device: String, name: String) -> Result<ProfileEntry
 	};
 
 	let mut locks = acquire_locks_mut().await;
-	let entry = locks.active_profiles.create_profile(&device_info, name).await?;
+	let entry = locks.profile_configs.create_profile(&device_info, name).await?;
 
 	Ok(entry)
 }
@@ -118,7 +118,7 @@ pub async fn delete_profile(device: String, profile: Uuid) -> Result<(), Error> 
 	}
 
 	// Nuke it
-	locks.active_profiles.delete_profile(&device_info, profile)?;
+	locks.profile_configs.delete_profile(&device_info, profile)?;
 	Ok(())
 }
 
@@ -129,7 +129,7 @@ pub async fn rename_profile(device: String, id: Uuid, name: String) -> Result<()
 	};
 
 	let mut locks = acquire_locks_mut().await;
-	locks.active_profiles.rename_profile(&device_info, id, &name)?;
+	locks.profile_configs.rename_profile(&device_info, id, &name)?;
 
 	Ok(())
 }

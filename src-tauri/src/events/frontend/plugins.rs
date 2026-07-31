@@ -130,7 +130,7 @@ pub async fn install_plugin(app: AppHandle, url: Option<String>, file: Option<St
 #[command]
 pub async fn remove_plugin(app: AppHandle, id: String) -> Result<(), Error> {
 	let locks = acquire_locks().await;
-	let all = locks.active_profiles.get_actions_for_plugin(&id);
+	let all = locks.profile_configs.get_actions_for_plugin(&id);
 	drop(locks);
 
 	for context in all {
@@ -161,7 +161,7 @@ pub async fn reload_plugin(app: AppHandle, id: String) {
 	let _ = initialise_plugin(config_dir().join("plugins").join(&id), tx).await;
 
 	let locks = acquire_locks().await;
-	let all =  locks.active_profiles.get_actions_for_plugin(&id);
+	let all =  locks.profile_configs.get_actions_for_plugin(&id);
 
 	for context in all {
 		if let Ok(Some(instance)) = get_instance(&context, &locks).await {

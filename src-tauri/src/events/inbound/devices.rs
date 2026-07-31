@@ -23,7 +23,7 @@ pub async fn register_device(uuid: &str, mut event: PayloadEvent<crate::shared::
 
 	// Load up the known Profiles for this Device
 	for profile in get_profile_entries(&event.payload.id) {
-		locks.active_profiles.load_profile(&event.payload, profile.id).await?;
+		locks.profile_configs.load_profile(&event.payload, profile.id).await?;
 	}
 
 	// Store the plugin UUID for this device
@@ -38,7 +38,7 @@ pub async fn register_device(uuid: &str, mut event: PayloadEvent<crate::shared::
 
 	// Ok, lets grab the selected profile
 	let selected_profile = locks.device_configs.get_selected_profile(&event.payload.id)?;
-	let profile = locks.active_profiles.get_profile(&event.payload, selected_profile)?;
+	let profile = locks.profile_configs.get_profile(&event.payload, selected_profile)?;
 
 	// Let all the actions know they're about to go live
 	for action in profile.pages[profile.current].actions() {
@@ -64,7 +64,7 @@ pub async fn deregister_device(uuid: &str, event: PayloadEvent<String>) -> Resul
 
 	// Firstly, we need to grab the current profile, and tell everything it's going away
 	let selected_profile = locks.device_configs.get_selected_profile(&device_info.id)?;
-	let profile = locks.active_profiles.get_profile(&device_info, selected_profile)?;
+	let profile = locks.profile_configs.get_profile(&device_info, selected_profile)?;
 
 	// Let all the actions know they're disappearing
 	for action in profile.pages[profile.current].actions() {
@@ -73,7 +73,7 @@ pub async fn deregister_device(uuid: &str, event: PayloadEvent<String>) -> Resul
 
 	// Finally, unload all the profiles for this device
 	for profile in get_profile_entries(&device_info.id) {
-		locks.active_profiles.unload_profile(&device_info, profile.id);
+		locks.profile_configs.unload_profile(&device_info, profile.id);
 	}
 
 	drop(locks);

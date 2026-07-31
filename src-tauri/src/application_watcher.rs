@@ -3,7 +3,7 @@ use crate::store::{NotProfile, Store};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::store::profiles::DEVICE_CONFIG;
+use crate::store::profiles::DEVICE_CONFIGS;
 use active_win_pos_rs::get_active_window;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 use tauri::{Emitter, Manager};
@@ -54,7 +54,7 @@ pub fn init_application_watcher() {
 						continue;
 					};
 
-					let current_profile = DEVICE_CONFIG.write().await.get_selected_profile(device).ok();
+					let current_profile = DEVICE_CONFIGS.write().await.get_selected_profile(device).ok();
 					if current_profile == Some(*profile) {
 						continue;
 					}
