@@ -3,7 +3,7 @@ use anyhow::{Result, bail};
 
 use crate::plugins::DEVICE_NAMESPACES;
 use crate::shared::DEVICES;
-use crate::store::profiles::{acquire_locks_mut, get_device_profiles};
+use crate::store::profiles::acquire_locks_mut;
 
 use crate::device_sleep;
 use crate::events::frontend;
@@ -23,7 +23,7 @@ pub async fn register_device(uuid: &str, mut event: PayloadEvent<crate::shared::
 
 	// Load up the known Profiles for this Device
 	for profile in get_profile_entries(&event.payload.id) {
-		locks.active_profiles.load_profile(&event.payload, profile.id)?;
+		locks.active_profiles.load_profile(&event.payload, profile.id).await?;
 	}
 
 	// Store the plugin UUID for this device

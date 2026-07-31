@@ -100,8 +100,16 @@ impl Page {
 		self.keys.iter().chain(&self.encoders).chain(&self.infobars).flatten()
 	}
 
+	pub fn raw_actions(&self) -> impl Iterator<Item = &Option<ActionInstance>> {
+		self.keys.iter().chain(&self.encoders).chain(&self.infobars)
+	}
+
 	pub fn actions_mut(&mut self) -> impl Iterator<Item = &mut ActionInstance> {
 		self.keys.iter_mut().chain(&mut self.encoders).chain(&mut self.infobars).flatten()
+	}
+
+	pub fn raw_actions_mut(&mut self) -> impl Iterator<Item = &mut Option<ActionInstance>> {
+		self.keys.iter_mut().chain(&mut self.encoders).chain(&mut self.infobars)
 	}
 
 	fn get_page_path(&self) -> PathBuf {

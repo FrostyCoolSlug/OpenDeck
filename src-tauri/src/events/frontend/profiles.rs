@@ -2,7 +2,7 @@ use super::Error;
 use log::debug;
 
 use crate::shared::{DEVICES, ProfileEntry, ProfileView};
-use crate::store::profiles::{acquire_locks_mut, get_device_profiles, save_profile_now};
+use crate::store::profiles::acquire_locks_mut;
 
 use crate::events::outbound::{devices, will_appear};
 use crate::store::profile::get_profile_entries;
@@ -99,7 +99,7 @@ pub async fn create_profile(device: String, name: String) -> Result<ProfileEntry
 	};
 
 	let mut locks = acquire_locks_mut().await;
-	let entry = locks.active_profiles.create_profile(&device_info, name)?;
+	let entry = locks.active_profiles.create_profile(&device_info, name).await?;
 
 	Ok(entry)
 }
